@@ -1,0 +1,718 @@
+#pragma once
+
+#include "IController.hpp"
+#include <ESPAsyncWebServer.h> 
+#include <LittleFS.h>
+
+#include "../uploadJson.h"
+
+class SSIDWifi{
+
+    String _SSID;
+    uint8_t _encryptionType;
+    int32_t _RSSI;
+    uint8_t *_BSSID;
+    int32_t _channel;
+    bool _isHidden;
+
+    private:
+
+        unsigned int getRSSIasQuality(int RSSI) const {
+            unsigned int quality = 0;
+
+            if (RSSI <= -100){
+                quality = 0;
+            }
+            else if (RSSI >= -50){
+                quality = 100;
+            }else{
+                quality = 2 * (RSSI + 100);
+            }
+            return quality;
+        }
+
+    public:
+   
+        SSIDWifi(String SSID, uint8_t encryptionType, int32_t RSSI, uint8_t *BSSID, int32_t channel, bool isHidden){
+            _SSID = SSID;
+            _encryptionType = encryptionType;
+            _RSSI = RSSI;
+            _BSSID = BSSID;
+            _channel = channel;
+            _isHidden = isHidden;
+
+        }
+
+        bool operator < (const SSIDWifi& other) const{
+            return getRSSIasQuality(_RSSI) < other.getQuality();
+        }
+
+        bool operator == (const SSIDWifi& other) const{
+            return _SSID == other.getSSID();
+        }
+
+        String getSSID() const { return _SSID;}
+        int32_t getQuality() const { return getRSSIasQuality(_RSSI);}
+};
+
+class CaptiveRequestHandler : public AsyncWebHandler
+{
+    std::vector<SSIDWifi> _wifiSSIDs;
+
+    Ticker _threadScan;
+    bool _scanReady;
+
+    Ticker _threadConnection;
+    int _maxRetries;
+    int _retries;
+
+    Ticker _threadDNS;
+    DNSServer dnsServer;
+    const byte DNS_PORT = 53;
+
+    bool _isConnected;
+
+    bool scanNetworks(){
+
+        wifi_ssid_count_t n = WiFi.scanComplete();
+        _scanReady = false;
+        if (n == WIFI_SCAN_FAILED)
+        {
+            Serial.println(F("scanNetworks returned: WIFI_SCAN_FAILED!"));
+        }
+        else if (n == WIFI_SCAN_RUNNING)
+        {
+                Serial.println(F("scanNetworks returned: WIFI_SCAN_RUNNING!"));
+        }
+        else if (n < 0)
+        {
+                Serial.println(F("scanNetworks failed with unknown error code!"));
+        }
+        else if (n == 0)
+        {
+                Serial.println(F("No networks found"));
+            // page += F("No networks found. Refresh to scan again.");
+        }
+        else
+        {
+                Serial.println(F("Scan done"));
+        }
+
+        if(n>0){
+            _wifiSSIDs.clear();
+            String SSID;
+            uint8_t encryptionType;
+            int32_t RSSI;
+            uint8_t *BSSID;
+            int32_t channel;
+            bool isHidden;
+
+            for (wifi_ssid_count_t i = 0; i < n; i++){
+                WiFi.getNetworkInfo(i,
+                        SSID,
+                        encryptionType,
+                        RSSI,
+                        BSSID,
+                        channel,
+                        isHidden);
+                _wifiSSIDs.emplace_back(SSID,encryptionType,RSSI,BSSID,channel,isHidden);
+            }
+
+            std::sort(_wifiSSIDs.begin(), _wifiSSIDs.end());
+            _wifiSSIDs.erase(std::unique(_wifiSSIDs.begin(), _wifiSSIDs.end()), _wifiSSIDs.end());    
+            WiFi.scanDelete();
+            _scanReady = true;
+        }
+
+        return _scanReady;
+    }
+
+    void connectToWifi(){
+        _retries = 0;
+        _threadConnection.attach_ms(500,[&](){
+            Serial.print("count : ");Serial.println(_retries);
+            if(_retries>=_maxRetries){
+                _retries = 0;
+                _threadConnection.detach();
+                Serial.println(F("WiFi connection FAILED"));
+                _isConnected = false;
+                WiFi.mode(WIFI_AP_STA);
+            }else{
+
+                if (WiFi.status() == WL_CONNECTED) {
+                    WiFi.persistent(false);
+                    _retries = 0;
+                    if(_threadDNS.active())
+                        _threadDNS.detach();
+                    _threadConnection.detach();
+                    Serial.println(F("WiFi connected!"));
+                    Serial.println("IP address: ");
+                    Serial.println(WiFi.localIP());
+                    ESP.restart();
+                    //_funcOnConnected();
+                }
+            }
+            _retries++;
+        });
+    }
+
+public:
+    CaptiveRequestHandler(AsyncWebServer* server,String deviceName) {
+        _maxRetries=15;
+        _isConnected = false;
+
+        Serial.println("No SSID saved!!!!!!!!!");
+        String apName = deviceName;
+        apName.toUpperCase();
+        apName="AP-"+apName;
+        Serial.print("AP Mode: ");
+        Serial.println(apName);
+        WiFi.softAP(apName);
+        delay(500);
+        Serial.print(F("AP IP address: "));
+        Serial.println(WiFi.softAPIP());
+        
+        dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+        if (!dnsServer.start(DNS_PORT, "*", WiFi.softAPIP())){
+            Serial.println(F("Could not start Captive DNS Server!"));
+        }
+
+        _threadDNS.attach_ms(10,[&](){
+            dnsServer.processNextRequest();
+        });
+
+        server->on("/styles.css", HTTP_GET, [](AsyncWebServerRequest *request){
+            request->send(LittleFS, "/styles.css","text/css");
+        });
+        server->on("/s.css", HTTP_GET, [](AsyncWebServerRequest *request){
+            request->send(LittleFS, "/s.css","text/css");
+        });
+        server->on("/loader.css", HTTP_GET, [](AsyncWebServerRequest *request){
+            request->send(LittleFS, "/loader.css","text/css");
+        });
+        server->on("/4/w3.css", HTTP_GET, [](AsyncWebServerRequest *request){
+            request->send(LittleFS, "/4/w3.css","text/css");
+        });
+        server->on("/api.js", HTTP_GET, [](AsyncWebServerRequest * request) {
+            request->send(LittleFS, "/api.js", "text/js");
+        });
+
+        server->on("/getWifiList", HTTP_GET, [this](AsyncWebServerRequest * request) {
+
+            wifi_ssid_count_t n = WiFi.scanNetworks(true);
+
+            if(_threadScan.active()){
+                _threadScan.detach();
+            }
+
+            _threadScan.attach_ms(500,[&](){
+                if(scanNetworks()){
+                    _threadScan.detach();
+                }
+            });
+
+            request->send(200, "text/html", "ok");
+        });
+
+        server->on("/wifiList", HTTP_GET, [this](AsyncWebServerRequest * request) {
+
+            if(_scanReady){
+                StaticJsonDocument<512> doc;
+                JsonArray ssidsArray = doc.createNestedArray("ssidList");
+                for(auto i: _wifiSSIDs){
+                    JsonObject ssid = ssidsArray.createNestedObject();
+                    ssid["ssid"] = i.getSSID();
+                    ssid["value"] = i.getSSID();
+                }
+                String output;
+                serializeJson(doc, output);
+                request->send(200, "text/html", output.c_str());
+            }else{
+                request->send(201, "text/html", "waiting");
+            }
+        });
+
+        server->on("/wifiConf", HTTP_GET, [&](AsyncWebServerRequest * request) {
+                
+            Serial.println("/wifiConf");
+
+            WiFi.mode(WIFI_STA);
+            WiFi.persistent(true);
+
+            wl_status_t statut;
+            if (request->hasParam("ssid") && request->hasParam("password") ){
+                WiFi.begin(request->getParam("ssid")->value(),request->getParam("password")->value());
+            }else{
+                if (request->hasParam("ssid")){
+                    WiFi.begin(request->getParam("ssid")->value());
+                }else{
+                    WiFi.begin("","");
+                }
+            }
+
+            connectToWifi();
+            //WiFi.begin("Lelahel","K6jt3qIM4igV");
+            //WiFi.begin("","");
+            //connectToWifi();
+            request->send(200, "text/html", "waiting");
+        });
+
+    }
+    virtual ~CaptiveRequestHandler() {}
+    bool canHandle(AsyncWebServerRequest *request)
+    {
+        //request->addInterestingHeader("ANY");
+        return true;
+    }
+    void handleRequest(AsyncWebServerRequest *request){
+        request->send(LittleFS, "/apmode.html", "text/html");
+    }
+};
+
+class WebController : public IController{
+
+        // DNSServer dnsServer;
+        // const byte DNS_PORT = 53;
+
+        String _modelPath;
+        String _indexPath;
+        String _wifiPath;
+        String _mqttPath;
+        String _stairsPath;
+
+        std::vector<SSIDWifi> _wifiSSIDs;
+
+        FuncBSCallback _funcStairsConf;
+        FuncBSCallback _funcMQTTConf;
+        FuncVVCallback _funcOnConnected;
+        std::map<String,FuncBVCallback> _serviceMap;
+
+        Ticker _threadConnection;
+        int _maxRetries;
+        int _retries;
+
+        Ticker _threadScan;
+        bool _scanReady;
+
+    private:
+
+        // void APMode(){
+        //     Serial.println("No SSID saved");
+        //     WiFi.mode(WIFI_AP_STA);
+        //     String apName = _deviceName;
+        //     apName.toUpperCase();
+        //     apName="AP-"+apName;
+        //     Serial.print("AP Mode: ");
+        //     Serial.println(apName);
+        //     WiFi.softAP(apName);
+        //     delay(500);
+        //     Serial.print(F("AP IP address: "));
+        //     Serial.println(WiFi.softAPIP());
+            
+        //     dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+        //     if (!dnsServer.start(DNS_PORT, "*", WiFi.softAPIP())){
+        //         Serial.println(F("Could not start Captive DNS Server!"));
+        //     }
+
+        //     _threadDNS.attach_ms(10,[&](){
+        //         dnsServer.processNextRequest();
+        //     });
+
+        // }
+
+        void connectToWifi(){
+            _retries = 0;
+            _threadConnection.attach_ms(1000,[&](){
+                Serial.print("count : ");Serial.println(_retries);
+                if(_retries>=_maxRetries){
+                    _retries = 0;
+                    _threadConnection.detach();
+                    Serial.println(F("WiFi connection FAILED"));
+                    //APMode();
+                    WiFi.mode(WIFI_AP_STA);
+                }else{
+
+                    if (WiFi.status() == WL_CONNECTED) {
+                        WiFi.persistent(false);
+                        _retries = 0;
+                        _threadConnection.detach();
+                        Serial.println(F("WiFi connected!"));
+                        Serial.println("IP address: ");
+                        Serial.println(WiFi.localIP());
+                        _funcOnConnected();
+                    }
+                }
+                _retries++;
+            });
+        }
+
+        String generateHTML(String& modelPath, String& placeholderPath){
+            
+            String model;
+            String placeholder;
+
+            FSStream::read(_modelPath,model);
+            FSStream::read(placeholderPath,placeholder);
+
+            model.replace("%PLACEHOLDER%",placeholder);
+            return model;
+        }
+    public:
+
+        WebController(const char* name):IController(name){
+            _modelPath = "template.html";
+            _indexPath = "index.html";
+            _wifiPath = "wifitest.html";
+            _mqttPath = "mqtt.html";
+            _stairsPath = "stairs.html";
+            _maxRetries=15;
+        }
+
+        void listen(AsyncWebServer* server){
+
+            server->addHandler(new CaptiveRequestHandler(server,_deviceName)).setFilter(ON_AP_FILTER);
+
+            server->on("/", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                request->send(200, "text/html", generateHTML(_modelPath,_indexPath));
+            });
+            server->on("/index.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                request->send(200, "text/html", generateHTML(_modelPath,_indexPath));
+            });
+            server->on("/wifi.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                request->send(200, "text/html", generateHTML(_modelPath,_wifiPath));
+            });
+            server->on("/mqtt.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                request->send(200, "text/html", generateHTML(_modelPath,_mqttPath));
+            });
+            server->on("/stairs.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                request->send(200, "text/html", generateHTML(_modelPath,_stairsPath));
+            });
+
+
+            // server->on("/styles.css", HTTP_GET, [](AsyncWebServerRequest *request){
+            //     request->send(LittleFS, "/styles.css","text/css");
+            // });
+            // server->on("/s.css", HTTP_GET, [](AsyncWebServerRequest *request){
+            //     request->send(LittleFS, "/s.css","text/css");
+            // });
+            // server->on("/loader.css", HTTP_GET, [](AsyncWebServerRequest *request){
+            //     request->send(LittleFS, "/loader.css","text/css");
+            // });
+            // server->on("/4/w3.css", HTTP_GET, [](AsyncWebServerRequest *request){
+            //     request->send(LittleFS, "/4/w3.css","text/css");
+            // });
+            // server->on("/api.js", HTTP_GET, [](AsyncWebServerRequest * request) {
+            //     request->send(LittleFS, "/api.js", "text/js");
+            // });
+
+            // server->on("/uploadJson", HTTP_GET, [](AsyncWebServerRequest * request) {
+            //     request->send(200, "text/html", uploadJson_html);
+            // });
+
+            server->on("/getMQTTStatus", HTTP_GET, [&](AsyncWebServerRequest * request) {
+                String jsonStatus = "{isOnline:\""+String(_serviceMap["MQTT"]())+"\"}";
+                request->send(200, "text/html", jsonStatus);
+            });
+
+            server->on("/action", HTTP_GET, [&](AsyncWebServerRequest * request) {
+                Serial.println("new action");
+
+                if (request->hasParam("JSON")){
+
+                    Serial.println(request->getParam("JSON")->value());
+                    String bodyJson = request->getParam("JSON")->value();
+                    StaticJsonDocument<200> docBody;
+
+                    DeserializationError docError = deserializeJson(docBody, bodyJson);
+                    if (docError) {
+                        Serial.print(F("deserializeJson() failed: "));
+                        Serial.println(docError.f_str());
+                        return;
+                    }
+
+                    bool error;
+                    bool on=false;
+                    error = ArduinoJson::extends::getValueFromJSON<bool, bool>(docBody["on"] | false, on, false);
+                    if(!on){
+
+                        _fnLightOff();
+                        return;
+                    }else{
+
+                        unsigned char brightness=0;
+                        error = ArduinoJson::extends::getValueFromJSON<int, unsigned char>(docBody["bri"] | -1 , brightness, -1);
+                        if(!error){
+                            String color;
+                            error = ArduinoJson::extends::getValueFromJSON<const char*, String>(docBody["color"] | ((const char*)(NULL)) , color, ((const char*)(NULL)));
+                            if(!error){
+                                return;
+                            }else{
+                                _fnColor(color);
+                                return;
+                            }
+                        }else{
+
+                            _fnBrightness(brightness);
+                        
+                        }
+                    }
+                }
+
+                request->send(200, "text/plain", "message received");
+            });
+
+            // server->on("/post", HTTP_POST, [this](AsyncWebServerRequest * request) {
+            //     if (request->hasParam("JSON", true)) {
+            //         //String inputMessage = request->getParam("JSON", true)->value();
+            //         bool error = _funcStairsConf(request->getParam("JSON", true)->value());
+            //         if(!error){
+            //             //Serial.print(F("deserializeJson() failed: "));
+            //             request->send(200, "text/html", "<a href='/uploadJson'> Error Go Back </a>");
+            //         }else{
+            //             request->send(200, "text/html", "<a href='/'> Go Back </a>");
+            //         }
+            //     }
+
+            // });
+
+            // server->on("/wifi.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
+
+            //     FSStream::read(_modelPath,_model);
+                
+            //     String wifitest;
+            //     FSStream::read("/wifitest.html",wifitest);
+
+            //     _model.replace("%PLACEHOLDER%",wifitest);
+            //     Serial.print("return!!");
+            //     request->send(200, "text/html", _model);
+
+            // });
+
+            // server->on("/getWifiList", HTTP_GET, [this](AsyncWebServerRequest * request) {
+
+            //     wifi_ssid_count_t n = WiFi.scanNetworks(true);
+
+            //     if(_threadScan.active()){
+            //         _threadScan.detach();
+            //     }
+
+            //     _threadScan.attach_ms(500,[&](){
+
+            //         if(scanNetworks()){
+            //             _threadScan.detach();
+            //         }
+            //     });
+
+            //     request->send(200, "text/html", "oooo");
+
+            // });
+
+            // server->on("/wifiList", HTTP_GET, [this](AsyncWebServerRequest * request) {
+
+            //     if(_scanReady){
+            //         StaticJsonDocument<512> doc;
+            //         JsonArray ssidsArray = doc.createNestedArray("ssidList");
+
+            //         int n =0;
+            //         for(auto i: _wifiSSIDs){
+            //             JsonObject ssid = ssidsArray.createNestedObject();
+            //             ssid["ssid"] = i.getSSID();
+            //             ssid["value"] = i.getSSID();
+            //         }
+
+            //         String output;
+            //         serializeJson(doc, output);
+
+            //         request->send(200, "text/html", output.c_str());
+            //     }else{
+            //         request->send(201, "text/html", "no");
+            //     }
+            // });
+
+            // server->on("/wifiConf", HTTP_GET, [&](AsyncWebServerRequest * request) {
+                
+            //     // wl_status_t statut;
+            //     // if (request->hasParam("ssid") && request->hasParam("password") ){
+            //     //     WiFi.mode(WIFI_STA);
+            //     //     WiFi.begin(request->getParam("ssid")->value(),request->getParam("password")->value());
+            //     //     connectToWifi();
+            //     // }else{
+            //     //     if (request->hasParam("ssid")){
+            //     //         WiFi.begin(request->getParam("ssid")->value());
+            //     //         connectToWifi();
+            //     //     }
+            //     // }
+
+            //     WiFi.mode(WIFI_STA);
+            //     WiFi.persistent(true);
+
+            //     WiFi.begin("Lelahel","K6jt3qIM4igV");
+            //     connectToWifi();
+
+            //     request->send(200, "text/html", "waiting");
+               
+            // });
+
+            // server->on("/getWifiStatus", HTTP_GET, [&](AsyncWebServerRequest * request) {
+            //     String jsonStatus = "{isOnline:\""+String(WiFi.status())+"\"}";
+            //     request->send(200, "text/html", jsonStatus);
+            // });
+
+            
+        }
+
+        void onLightOff(IController::FuncVVCallback fnLightOff){
+            _fnLightOff = fnLightOff;
+        }
+
+        void onColorChange(IController::FuncVSCallback fnColor){
+            _fnColor = fnColor;
+        }
+
+        void onBrightnessChange(IController::FuncVUCCallback fnBrightness){
+            _fnBrightness = fnBrightness;
+        }
+
+        void onConnectedStairsConf(FuncBSCallback func) {
+            _funcStairsConf = func;
+        }
+      
+        void onMQTTConf(FuncBSCallback func) {
+            _funcMQTTConf = func;
+        }
+
+        bool scanNetworks(){
+
+            wifi_ssid_count_t n = WiFi.scanComplete();
+            _scanReady = false;
+            if (n == WIFI_SCAN_FAILED)
+            {
+                Serial.println(F("scanNetworks returned: WIFI_SCAN_FAILED!"));
+            }
+            else if (n == WIFI_SCAN_RUNNING)
+            {
+                 Serial.println(F("scanNetworks returned: WIFI_SCAN_RUNNING!"));
+            }
+            else if (n < 0)
+            {
+                 Serial.println(F("scanNetworks failed with unknown error code!"));
+            }
+            else if (n == 0)
+            {
+                 Serial.println(F("No networks found"));
+                // page += F("No networks found. Refresh to scan again.");
+            }
+            else
+            {
+                 Serial.println(F("Scan done"));
+            }
+
+            if(n>0){
+                _wifiSSIDs.clear();
+                String SSID;
+                uint8_t encryptionType;
+                int32_t RSSI;
+                uint8_t *BSSID;
+                int32_t channel;
+                bool isHidden;
+                    Serial.println("scan :");
+
+                for (wifi_ssid_count_t i = 0; i < n; i++){
+                    WiFi.getNetworkInfo(i,
+                          SSID,
+                          encryptionType,
+                          RSSI,
+                          BSSID,
+                          channel,
+                          isHidden);
+                    _wifiSSIDs.emplace_back(SSID,encryptionType,RSSI,BSSID,channel,isHidden);
+                }
+
+                std::sort(_wifiSSIDs.begin(), _wifiSSIDs.end());
+                _wifiSSIDs.erase(std::unique(_wifiSSIDs.begin(), _wifiSSIDs.end()), _wifiSSIDs.end());    
+                WiFi.scanDelete();
+                _scanReady = true;
+            }
+
+           return _scanReady;
+
+        }
+
+        void reset(){
+
+            WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
+            WiFi.persistent(true);
+            #if defined(ESP8266)
+            WiFi.disconnect(true);
+            #else
+            WiFi.disconnect(true, true);
+            #endif
+            WiFi.persistent(false);
+            
+        }
+
+        void onConnected(FuncVVCallback func){
+            _funcOnConnected = func;
+        }
+
+        void autoConnect(){
+            
+            // reset();
+           WiFi.mode(WIFI_STA);
+            //WiFi.begin("Lelahel","K6jt3qIM4igV");
+            WiFi.begin();
+            delay(500);
+            connectToWifi();
+            
+
+            // int retries = 0;
+            // while ((WiFi.status() != WL_CONNECTED) && (retries < 15)) {
+            //     retries++;
+            //     delay(500);
+            //     Serial.print(".");
+            // }
+
+            // if (retries > 14) {
+            //     Serial.println(F("WiFi connection FAILED"));
+            // }
+            // if (WiFi.status() == WL_CONNECTED) {
+            //     Serial.println(F("WiFi connected!"));
+            //     Serial.println("IP address: ");
+            //     Serial.println(WiFi.localIP());
+            // }
+            //     Serial.println(F("Setup ready"));
+
+            // 
+
+            // if (WiFi.SSID().length() > 0){
+            //     Serial.print("SSID saved");
+            //     if( WiFi.begin() == WL_CONNECTED){
+            //         _funcOnConnected();
+            //     }
+            // }else{
+            //     scanNetworks();
+            //     APMode();
+            // }
+
+            // for(unsigned int i = 0; i < _maxRetry; i++){
+
+            //     if( WiFi.begin() == WL_CONNECTED){
+                    
+            //         return true;
+            //     }
+
+            //     unsigned long thisDelay = std::min(restDelayMs, 100ul);
+            //     delay(thisDelay);
+            // }
+
+            // WiFi.mode(WIFI_AP_STA);
+
+            // WiFi.persistent(true);
+            // String g = name.toUpperCase();
+        }
+
+        void setServiceStatus(String service, FuncBVCallback func){
+            _serviceMap[service] = func;
+        }
+       
+};

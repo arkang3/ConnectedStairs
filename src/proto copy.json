@@ -1,0 +1,76 @@
+{
+	"neopixel":{
+		"pin": "D8",
+		"type": "",
+		"brightness": 35
+	},
+	"LDRThreshold": 35,
+	"lightEffect": {
+		"type": 0,
+		"speed": 500,
+		"lightOffAfter": 5000
+	},
+	"stepxels": [{
+			"pixels": 1,
+            "colors": ["0xffffff"]
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1,
+            "color": ["0xffffff"]
+		}
+	]
+}

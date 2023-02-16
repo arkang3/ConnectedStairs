@@ -1,0 +1,93 @@
+{
+	"neopixel":{
+		"pin": "D8",
+		"brightness": 35,
+		"maxBrightness": 35,
+		"type": "NEO_GRB NEO_KHZ800"
+		
+	},
+	"LDRThreshold": 35,
+	"lightEffect": {
+		"type": 0,
+		"speed": 500,
+		"lightOffAfter": 5000,
+		"matrixGradient": [{
+				"at": 0,
+				"lineGradient": 
+				[
+					{"at":0, "color":"0xff0000"},{"at":1, "color":"0xff0000"}
+				]
+				
+			},
+			{
+				"at": 1,
+				"lineGradient": 
+				[
+					{"at":0, "color":"0xff0000"},{"at":1, "color":"0xff0000"}
+				]
+				
+			}
+		]
+	},
+	"stepxels": [{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		},
+		{
+			"pixels": 1
+		}
+	]
+}
