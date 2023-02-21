@@ -39,12 +39,15 @@ class Stepxel{
                 _isDirty = true;
             }
 
+            unsigned int startAt=0;
+            error = ArduinoJson::extends::getValueFromJSON<int, unsigned int>(object["startAt"] | 0 , startAt, 0);
+
             if(_isDirty){
                 defaultConfig();
             }else{
-                _step = std::make_pair(offset,offset+nPixel);
+                _step = std::make_pair(offset+startAt,offset+nPixel+startAt);
                 _size = nPixel ;
-                offset = offset + nPixel;
+                offset = offset + nPixel + startAt;
                 _status = false;
             }
 

@@ -38,6 +38,8 @@
 class AlexaController : public IController{
 
         fauxmoESP _fauxmo;
+        unsigned char _idDevice;
+        std::map<String,FuncBVCallback> _serviceMap;
 
     public:
 
@@ -128,7 +130,7 @@ class AlexaController : public IController{
             _fauxmo.createServer(false);
             _fauxmo.setPort(80);
             _fauxmo.enable(true);
-            _fauxmo.addDevice(_deviceName.c_str());
+            _idDevice = _fauxmo.addDevice(_deviceName.c_str());
 
             _fauxmo.onSetState([this](unsigned char device_id, const char* device_name,String urlJson, String bodyJson){
                 
@@ -166,7 +168,6 @@ class AlexaController : public IController{
                             error = ArduinoJson::extends::getValueFromJSON<int, unsigned int>(docBody["sat"] | -1 , sat, -1);
                             value = hue*2 + sat;
                             if(!error){
-                                // TODO: on allume la couleur defaut (gradient)
                                 String aColor = "0x000000";
                                 _fnColor(aColor);
                                 return;
@@ -204,9 +205,18 @@ class AlexaController : public IController{
                 // Handle not found request here...
             }); 
 
-            _looper.attach_ms(100,[&](){
+            _looper.attach_ms(200,[&](){
+                if(_serviceMap["getStairsStatus"]())
+                    _fauxmo.setState(_idDevice, true, 255);
+                else
+                    _fauxmo.setState(_idDevice, false, 0);
                 _fauxmo.handle();
             });
         }
+
+        void setServiceStatus(String service, FuncBVCallback func){
+            _serviceMap[service] = func;
+        }
+        
 
 };

@@ -268,6 +268,11 @@ class WebController : public IController{
         String _mqttPath;
         String _stairsPath;
 
+        String _indexHTML;
+        String _wifiHTML;
+        String _mqttHTML;
+        String _stairsHTML;
+
         std::vector<SSIDWifi> _wifiSSIDs;
 
         FuncBSCallback _funcStairsConf;
@@ -390,11 +395,11 @@ class WebController : public IController{
     public:
 
         WebController(const char* name):IController(name){
-            _modelPath = "template.html";
-            _indexPath = "index.html";
-            _wifiPath = "wifi.html";
-            _mqttPath = "mqtt.html";
-            _stairsPath = "stairs.html";
+            _modelPath = "template.min.html";
+            _indexPath = "index.min.html";
+            _wifiPath = "wifi.min.html";
+            _mqttPath = "mqtt.min.html";
+            _stairsPath = "stairs.min.html";
             _maxRetries=15;
         }
 
@@ -403,19 +408,72 @@ class WebController : public IController{
             server->addHandler(new CaptiveRequestHandler(server,_deviceName)).setFilter(ON_AP_FILTER);
 
             server->on("/", HTTP_GET, [this](AsyncWebServerRequest * request) {
-                request->send(200, "text/html", generateHTML(_modelPath,_indexPath));
+                request->send(200, "text/html",generateHTML(_modelPath,_indexPath));
             });
             server->on("/index.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
                 request->send(200, "text/html", generateHTML(_modelPath,_indexPath));
             });
-            server->on("/getStairsStatus", HTTP_GET, [&](AsyncWebServerRequest * request) {
-                String jsonStatus = "{\"isOnline\":\""+String(_serviceMap["Stairs"]())+"\"}";
-                request->send(200, "text/html", jsonStatus);
-            });
-
             server->on("/wifi.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
                 request->send(200, "text/html", generateHTML(_modelPath,_wifiPath));
             });
+            server->on("/mqtt.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                request->send(200, "text/html", generateHTML(_modelPath,_mqttPath));
+            });
+            server->on("/stairs.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                request->send(200, "text/html", generateHTML(_modelPath,_stairsPath));
+            });
+
+
+            server->on("/getStairsStatus", HTTP_GET, [&](AsyncWebServerRequest * request) {
+                String jsonStatus = "{\"status\":\""+String(_serviceMap["getStairsStatus"]())+"\"}";
+                request->send(200, "text/html", jsonStatus);
+            });
+            server->on("/getStairsConfig", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                String path = "stairsConf.json";
+                String fileContent;
+                if(FSStream::read(path,fileContent)){
+                    Serial.println("stairs found");
+                    request->send(200, "text/html", fileContent);
+                }else{
+                    Serial.println("no stairs config");
+                    request->send(200, "text/html", "KO");
+                }
+            });
+            server->on("/setStairsConf", HTTP_GET, [&](AsyncWebServerRequest * request) {
+                Serial.println("/setStairsConf :");
+                Serial.println(request->getParam("JSON")->value());
+                if(_funcStairsConf(request->getParam("JSON")->value()))
+                    request->send(200, "text/html", "OK");
+                else
+                    request->send(200, "text/html", "KO");
+
+            });
+
+            server->on("/getMQTTConfig", HTTP_GET, [this](AsyncWebServerRequest * request) {
+                String path = "mqttConf.json";
+                String fileContent;
+                if(FSStream::read(path,fileContent)){
+                    Serial.print("mqtt found");
+                    request->send(200, "text/html", fileContent);
+                }else{
+                    Serial.print("no mqtt config");
+                    request->send(200, "text/html", "KO");
+                }
+            });
+            server->on("/setMQTTConf", HTTP_GET, [&](AsyncWebServerRequest * request) {
+                Serial.println("/setMQTTConf :");
+                Serial.println(request->getParam("JSON")->value());
+                if(_funcMQTTConf(request->getParam("JSON")->value()))
+                    request->send(200, "text/html", "OK");
+                else
+                    request->send(200, "text/html", "KO");
+            });
+            server->on("/getMQTTStatus", HTTP_GET, [&](AsyncWebServerRequest * request) {
+                String jsonStatus = "{\"status\":\""+String(_serviceMap["getMQTTStatus"]())+"\"}";
+                request->send(200, "text/html", jsonStatus);
+            });
+
+           
             server->on("/scanNetworks", HTTP_GET, [this](AsyncWebServerRequest * request) {
                 wifi_ssid_count_t n = WiFi.scanNetworks(true);
                 if(_threadScan.active()){
@@ -462,54 +520,11 @@ class WebController : public IController{
             //     request->send(200, "text/html", "waiting");
             // });
 
-            server->on("/mqtt.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
-                request->send(200, "text/html", generateHTML(_modelPath,_mqttPath));
-            });
-            server->on("/loadMQTTConfig", HTTP_GET, [this](AsyncWebServerRequest * request) {
-                String path = "mqttConf.json";
-                String fileContent;
-                if(FSStream::read(path,fileContent)){
-                    Serial.print("mqtt found");
-                    request->send(200, "text/html", fileContent);
-                }else{
-                    Serial.print("no mqtt config");
-                    request->send(200, "text/html", "KO");
-                }
-            });
-            server->on("/setMQTTConf", HTTP_GET, [&](AsyncWebServerRequest * request) {
-                Serial.println("/setMQTTConf :");
-                Serial.println(request->getParam("JSON")->value());
-                _funcMQTTConf(request->getParam("JSON")->value());
-                request->send(200, "text/html", "ok");
-            });
-            server->on("/getMQTTStatus", HTTP_GET, [&](AsyncWebServerRequest * request) {
-                String jsonStatus = "{\"isOnline\":\""+String(_serviceMap["MQTT"]())+"\"}";
-                request->send(200, "text/html", jsonStatus);
-            });
+            
+            
 
-            server->on("/stairs.html", HTTP_GET, [this](AsyncWebServerRequest * request) {
-                request->send(200, "text/html", generateHTML(_modelPath,_stairsPath));
-            });
-            server->on("/loadStairsConfig", HTTP_GET, [this](AsyncWebServerRequest * request) {
-                String path = "stairsConf.json";
-                String fileContent;
-                if(FSStream::read(path,fileContent)){
-                    Serial.println("stairs found");
-                    request->send(200, "text/html", fileContent);
-                }else{
-                    Serial.println("no stairs config");
-                    request->send(200, "text/html", "KO");
-                }
-            });
-            server->on("/setStairsConf", HTTP_GET, [&](AsyncWebServerRequest * request) {
-                Serial.println("/setStairsConf :");
-                Serial.println(request->getParam("JSON")->value());
-                if(_funcStairsConf(request->getParam("JSON")->value()))
-                    request->send(200, "text/html", "ok");
-                else
-                    request->send(200, "text/html", "ko");
-
-            });
+            
+            
             
 
 
@@ -529,12 +544,6 @@ class WebController : public IController{
             //     request->send(LittleFS, "/api.js", "text/js");
             // });
 
-            // server->on("/uploadJson", HTTP_GET, [](AsyncWebServerRequest * request) {
-            //     request->send(200, "text/html", uploadJson_html);
-            // });
-
-            
-
             server->on("/action", HTTP_GET, [&](AsyncWebServerRequest * request) {
                 Serial.println("new action");
 
@@ -548,6 +557,7 @@ class WebController : public IController{
                     if (docError) {
                         Serial.print(F("deserializeJson() failed: "));
                         Serial.println(docError.f_str());
+                        request->send(200, "text/plain", "KO");
                         return;
                     }
 
@@ -557,6 +567,7 @@ class WebController : public IController{
                     if(!on){
 
                         _fnLightOff();
+                        request->send(200, "text/plain", "OK");
                         return;
                     }else{
 
@@ -566,19 +577,23 @@ class WebController : public IController{
                             String color;
                             error = ArduinoJson::extends::getValueFromJSON<const char*, String>(docBody["color"] | ((const char*)(NULL)) , color, ((const char*)(NULL)));
                             if(!error){
+                                _fnColor("0x000000");
+                                request->send(200, "text/plain", "OK");
                                 return;
                             }else{
                                 _fnColor(color);
+                                request->send(200, "text/plain", "OK");
                                 return;
                             }
                         }else{
 
                             _fnBrightness(brightness);
-                        
+                            request->send(200, "text/plain", "OK");
                         }
                     }
+                    request->send(200, "text/plain", "OK");
                 }
-                request->send(200, "text/plain", "message received");
+               
             });
 
         }

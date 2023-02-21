@@ -79,6 +79,7 @@ bool MQTTClient::loadFromFile(String confPath){
         deserializeJson(doc, bufferedFile);
         const JsonObject& root = doc.as<JsonObject>();
         if(deserialize(root)){
+            connect();
             return true;
         }else{
             Serial.println(F("deserialize load error"));
@@ -152,7 +153,7 @@ void MQTTClient::saveToFile(String confPath){
         WriteBufferingStream buffered(file, 64);
         DynamicJsonDocument doc(1024);
 
-        doc["host"]   = host;
+        doc["server"]   = host;
         //doc["ipAddress"]   = ipAddress;
         doc["port"]   = port;
         doc["username"]   = username;

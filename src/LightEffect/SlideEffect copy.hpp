@@ -1,7 +1,6 @@
 #pragma once
 
 #include <mutex>
-#include <Ticker.h>
 #include <ArduinoJson.h>
 
 #include "../Common/NeoPixel.hpp"
@@ -10,7 +9,7 @@
 
 #include "ILightEffect.hpp"
 
-class StaticEffect : public ILightEffect{
+class SlideEffect : public ILightEffect{
 
         Ticker _threadOnDown2Up;
         Ticker _threadOnUp2Down;
@@ -19,14 +18,10 @@ class StaticEffect : public ILightEffect{
         
     public:
 
-        StaticEffect(NeoPixel& pixelsDriver,std::vector<Stepxel>& stepxels,const JsonObject& object):ILightEffect(pixelsDriver,stepxels,object){
+        SlideEffect(NeoPixel& pixelsDriver,std::vector<Stepxel>& stepxels,const JsonObject& object):ILightEffect(pixelsDriver,stepxels,object){
             _maxExecutionCount=_stepxels.size()+1;
             _isInterrupt=false;
         }
-
-         
-
-       
 
         void lightDown2Up(){
             Serial.print("lightDown2Up");
@@ -54,8 +49,13 @@ class StaticEffect : public ILightEffect{
                             return getGradientColor(x,y);
                         };
 
+                        float wait = _speed/stepxels.size();
+
                         if(!stepxels.status()){
-                            _pixelsDriver.display(stepxels.begin(),stepxels.size(),colorFunc);
+                            for(unsigned int t=0;t<stepxels.size();t++){
+                                _pixelsDriver.display(stepxels.begin()+t,1,colorFunc);
+                                delay(wait);
+                            }
                             const_cast<Stepxel&>(stepxels).setStatus(true);
                         }
                     }
@@ -97,8 +97,13 @@ class StaticEffect : public ILightEffect{
                             return getGradientColor(x,y);
                         };
 
+                        float wait = _speed/stepxels.size();
+
                         if(!stepxels.status()){
-                            _pixelsDriver.display(stepxels.begin(),stepxels.size(),colorFunc);
+                            for(unsigned int t=0;t<stepxels.size();t++){
+                                _pixelsDriver.display(stepxels.begin()+t,1,colorFunc);
+                                delay(wait);
+                            }
                             const_cast<Stepxel&>(stepxels).setStatus(true);
                         }
                     }

@@ -19,6 +19,7 @@ class NeoPixel{
         std::map<String,unsigned int> _dataTransmiterMap;
         std::map<String,unsigned int> _dataFreq;
         bool _isDirty;
+
        
     private:
 
@@ -196,6 +197,10 @@ class NeoPixel{
             object["type"]= _strNeoPixeltype;
         }
 
+        unsigned char getBrighnessMax(){
+            return _maxBrightness;
+        }
+
         void setBrightness(unsigned int value){
             if(_brightness!=value && value <=_maxBrightness){
                 _neopixels->setBrightness(value);
@@ -225,14 +230,16 @@ class NeoPixel{
 
         void display(unsigned int begin, unsigned int size, std::function<RGBW(unsigned int)> func){
             unsigned int end = begin+size; 
-            for(auto x=begin;x<end;x++)
-                _neopixels->setPixelColor(x,func(x).getColor());
-             _neopixels->show();
+            unsigned int xx=0;
+            for(auto x=begin;x<end;x++){
+                _neopixels->setPixelColor(x,func(xx).getColor());
+                xx++;
+            }
+            _neopixels->show();
         }
 
         void setColorLine(unsigned int begin, unsigned int end, const RGBW& color){
             for(auto i=begin;i<end;i++){
-                Serial.print(i);
                 _neopixels->setPixelColor(i,color.getColor());
             }
         }
@@ -243,8 +250,9 @@ class NeoPixel{
         }
 
         void setColorLine(unsigned int begin, unsigned int end, std::function<RGBW(unsigned int)> func){
-            for(auto x=begin;x<end;x++)
+            for(auto x=begin;x<end;x++){
                 _neopixels->setPixelColor(x,func(x).getColor());
+            }
         }
 
 

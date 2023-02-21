@@ -27,6 +27,7 @@ std::function<void()> mqttConnected;
 void configureAlexaController();
 void configureWebController();
 
+void configureMQTTClient();
 
 
 //30LEDs/m
@@ -35,7 +36,6 @@ void configureWebController();
 
 
 // 130,00
-
 // 80,00
 // 80,00
 // 82,00
@@ -55,7 +55,7 @@ void configureWebController();
 // 78,50
 // 78,50
 
-// 1736,00
+// 1747,00
 
 void setup(){
 
@@ -66,6 +66,8 @@ void setup(){
 
   FSStream::begin();
 
+  configureMQTTClient();
+
   configureWebController();
   web.listen(&server);
 
@@ -73,56 +75,39 @@ void setup(){
 
   stairs.loadFromFile();
 
-  pirDownfunc =  [&pirDownfunc,&stairs](String data){
-      bool value = convertToNumeric<String,bool>(data);
-      if(value){
-        stairs.onDown2Up();
-      }
-  };
-
-  pirUpfunc =  [&pirUpfunc,&stairs](String data){
-      bool value = convertToNumeric<String,bool>(data);
-      if(value){
-        stairs.onUp2Down();
-      }
-  };
-
-  LDRFunc =  [&LDRFunc,&stairs](String data){
-      bool value = convertToNumeric<String,bool>(data);
-      if(value){
-        stairs.onDown2Up();
-      }
-  };
-
-
-  mqttConnected=[&mqttConnected,&mqttClient](){
-    mqttClient.on(String("PIRDown"),pirDownfunc);
-    mqttClient.on(String("PIRUp"),pirUpfunc);
-    mqttClient.on(String("LDR"),LDRFunc);
-
-    // String msg = "{\"neopixel\":{\"pin\":\"D8\",\"brightness\":35,\"maxBrightness\":35,\"type\":\"0\"},\"LDRThreshold\":35,\"lightEffect\":{\"type\":0,\"speed\":500,\"lightOffAfter\":5000,\"matrixGradient\":[{\"at\":0,\"lineGradient\":[{\"at\":0,\"color\":\"0xff0000\"},{\"at\":1,\"color\":\"0xff0000\"}]},{\"at\":1,\"lineGradient\":[{\"at\":0,\"color\":\"0xff0000\"},{\"at\":1,\"color\":\"0xff0000\"}]}]},\"stepxels\":[{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1},{\"pixels\":1}]}";
-    //  //if(!stairs.loadFromFile()){
-    // //  Serial.println(F("stairs::loadFromFile not loaded"));
-    // //}
-    // if(!stairs.loadFromMemory(msg.c_str())){
-    //   Serial.println(F("stairs::loadFromMemory not loaded"));
-    // }else{
-    //   stairs.saveToFile();
-    // }
-  };
-
-  if(mqttClient.loadFromFile()){
-    mqttClient.connect();
-  }
-  // else{
-  //   Serial.println(F("mqttParams not loaded"));
-  //   mqttClient.connect(F("broker.hivemq.com"),1883);
-  // }
-
-  mqttClient.onConnected(mqttConnected);
-  mqttClient.onDisconnected([&](){});
-
   web.autoConnect();
+
+  // pirDownfunc =  [&pirDownfunc,&stairs](String data){
+  //     bool value = convertToNumeric<String,bool>(data);
+  //     if(value){
+  //       stairs.onDown2Up();
+  //     }
+  // };
+
+  // pirUpfunc =  [&pirUpfunc,&stairs](String data){
+  //     bool value = convertToNumeric<String,bool>(data);
+  //     if(value){
+  //       stairs.onUp2Down();
+  //     }
+  // };
+
+  // LDRFunc =  [&LDRFunc,&stairs](String data){
+  //     bool value = convertToNumeric<String,bool>(data);
+  //     if(value){
+  //       stairs.onDown2Up();
+  //     }
+  // };
+
+
+  // mqttConnected=[&mqttConnected,&mqttClient](){
+  //   mqttClient.on(String("PIRDown"),pirDownfunc);
+  //   mqttClient.on(String("PIRUp"),pirUpfunc);
+  //   mqttClient.on(String("LDR"),LDRFunc);
+  // };
+
+  // mqttClient.onConnected(mqttConnected);
+  // mqttClient.onDisconnected([&](){});
+
 
   // if(!web.autoConnect()) {
   //   Serial.println(F("failed to connect and hit timeout"));
@@ -148,53 +133,47 @@ void setup(){
   // //   delay(5000);
   // // }
 
-
-
-
-  // 
-
- 
-
-  
-
 }
 
 void loop(){
   // MDNS.update();
+  //alexa.handle();
 }
 
 void configureWebController(){
 
-  web.onConnected([](){
+  web.onConnected([&](){
     Serial.println("ESP Online");
     if(MDNS.begin("connectedstairs")) {
       MDNS.addService("http", "tcp", 80);
       Serial.println(F("MDNS responder started"));
     }
+
+    configureAlexaController();
+    alexa.listen(&server);
+
+    mqttClient.loadFromFile();
   });
 
-  web.setServiceStatus("Stairs",[&](){
+  web.setServiceStatus("getStairsStatus",[&](){
     return stairs.getStatus();
   });
 
-  web.setServiceStatus("MQTT",[&](){
+  web.setServiceStatus("getMQTTStatus",[&](){
     return mqttClient.getStatus();
   });
 
   web.onLightOff([](){
     stairs.lightOff();
-    stairs.changeManagerMode(Mode::SMART);
   });
 
   web.onBrightnessChange([](unsigned char value){
-    stairs.changeManagerMode(Mode::WEB);
     Serial.println(value);
     stairs.setBrightness(value);
   });
 
   web.onColorChange([](String acolor){
-    stairs.changeManagerMode(Mode::WEB);
-    Serial.println(acolor);
+    Serial.println("web::onColorChange");
     RGBW color(acolor);
     stairs.lightOn(color); 
   });
@@ -225,11 +204,11 @@ void configureWebController(){
 void configureAlexaController(){
   alexa.setColorFor<AlexaController::AlexaColor::NONE>("0x000000");
 
-  alexa.setColorFor<AlexaController::AlexaColor::WARM_WHITE>("0xf3e7d3");
+  alexa.setColorFor<AlexaController::AlexaColor::WARM_WHITE>("0xff6200");
   alexa.setColorFor<AlexaController::AlexaColor::SOFT_WHITE>("0xe9e0c9");
   alexa.setColorFor<AlexaController::AlexaColor::WHITE>("0xffffff");
-  alexa.setColorFor<AlexaController::AlexaColor::SUN_WHITE>("0xf4e99b");
-  alexa.setColorFor<AlexaController::AlexaColor::COOL_WHITE>("0xf4fdff");
+  alexa.setColorFor<AlexaController::AlexaColor::SUN_WHITE>("0xff7300");
+  alexa.setColorFor<AlexaController::AlexaColor::COOL_WHITE>("0xffffff");
 
   alexa.setColorFor<AlexaController::AlexaColor::RED>("0xff0000");
   alexa.setColorFor<AlexaController::AlexaColor::CRIMSON>("0xad1c42");
@@ -257,11 +236,70 @@ void configureAlexaController(){
   });
 
   alexa.onColorChange([](String acolor){
+    Serial.print("alexa::onColorChange");
     RGBW color(acolor);
     stairs.lightOn(color); 
   });
+
+  alexa.setServiceStatus("getStairsStatus",[&](){
+    return stairs.getStatus();
+  });
 }
 
+
+void configureMQTTClient(){
+
+  mqttClient.onDisconnected([&](){});
+
+// pirDownfunc =  [&pirDownfunc,&stairs](String data){
+  //     bool value = convertToNumeric<String,bool>(data);
+  //     if(value){
+  //       stairs.onDown2Up();
+  //     }
+  // };
+
+  // pirUpfunc =  [&pirUpfunc,&stairs](String data){
+  //     bool value = convertToNumeric<String,bool>(data);
+  //     if(value){
+  //       stairs.onUp2Down();
+  //     }
+  // };
+
+  // LDRFunc =  [&LDRFunc,&stairs](String data){
+  //     bool value = convertToNumeric<String,bool>(data);
+  //     if(value){
+  //       stairs.onDown2Up();
+  //     }
+  // };
+
+  mqttClient.onConnected([&stairs](){
+
+    mqttClient.on(String("PIRDown"), [&stairs](String data){
+      bool value = convertToNumeric<String,bool>(data);
+      if(value){
+        stairs.onDown2Up();
+      }
+    });
+
+    mqttClient.on(String("PIRUp"),[&stairs](String data){
+      bool value = convertToNumeric<String,bool>(data);
+      if(value){
+        stairs.onUp2Down();
+      }
+    });
+    mqttClient.on(String("LDR"),[&stairs](String data){
+      bool value = convertToNumeric<String,bool>(data);
+      if(value){
+        stairs.onDown2Up();
+      }
+    });
+
+  });
+  
+  
+  
+
+}
 
 // fauxmoESP fauxmo;
 // AsyncWebServer server(80);

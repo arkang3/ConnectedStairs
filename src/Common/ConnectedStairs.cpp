@@ -44,6 +44,7 @@ bool ConnectedStairs::loadFromMemory(const char* json){
 bool ConnectedStairs::deserialize(const JsonObject& root) {
     
     bool ret = true;
+    bool error;
     _stepxels.clear();
 
     const JsonArray& stepxelsArray = root["stepxels"];
@@ -61,7 +62,7 @@ bool ConnectedStairs::deserialize(const JsonObject& root) {
     if(_pixelsDriver.isDirty()) ret = false;
 
     _LDRThreshold = 0;
-    bool error = ArduinoJson::extends::getValueFromJSON<int, unsigned int>(root["LDRThreshold"] | -1 , _LDRThreshold, -1);
+    error = ArduinoJson::extends::getValueFromJSON<int, unsigned int>(root["LDRThreshold"] | -1 , _LDRThreshold, -1);
     if (!error) {
         Serial.print(F("ConnectedStairs::deserialize LDRThreshold error"));
         ret = false;

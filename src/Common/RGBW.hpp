@@ -69,7 +69,7 @@ class RGBW{
             return T(_w);
         }
 
-        bool isFullBlack() const{
+        bool isBlack() const{
             if(_r == 0 && _g == 0 && _b == 0 && _w == 0)
                 return true;
             return false;

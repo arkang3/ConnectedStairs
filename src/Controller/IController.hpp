@@ -32,4 +32,6 @@ class IController{
       
         virtual void onMQTTConf(FuncBSCallback func) = 0;
 
+        virtual void setServiceStatus(String service, FuncBVCallback func) = 0;
+
 };

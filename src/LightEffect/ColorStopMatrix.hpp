@@ -47,7 +47,7 @@ class ColorStopSquareView{
 
 class ColorStopMatrix{
 
-        std::map<float, std::vector<ColorStop> > _matrix;
+        std::map<int, std::vector<ColorStop> > _matrix;
         std::vector<ColorStopSquareView> _squareView;
 
     public:
@@ -59,7 +59,7 @@ class ColorStopMatrix{
             _squareView.clear();
         }
 
-        void addLine(float index, std::vector<ColorStop>& colorStopLine){
+        void addLine(int index, std::vector<ColorStop>& colorStopLine){
             _matrix[index] = colorStopLine;
             Serial.print("at: ");
             Serial.println(index);
@@ -72,7 +72,7 @@ class ColorStopMatrix{
 
         }
 
-        const std::map<float, std::vector<ColorStop> >& getRawData(){
+        const std::map<int, std::vector<ColorStop> >& getRawData(){
             return _matrix;
         }
 
@@ -99,6 +99,11 @@ class ColorStopMatrix{
                     _squareView.push_back({&(*upL),&(*upR),&(*loL),&(*loR)});
 
                     Serial.println("valid square :");
+                    Serial.print(upL->getX());Serial.print(" ");Serial.println(upL->getY());
+                    Serial.print(upR->getX());Serial.print(" ");Serial.println(upR->getY());
+                    Serial.print(loL->getX());Serial.print(" ");Serial.println(loL->getY());
+                    Serial.print(loR->getX());Serial.print(" ");Serial.println(loR->getY());
+
                     Serial.println(upL->getColor());
                     Serial.println(upR->getColor());
                     Serial.println(loL->getColor());
@@ -126,10 +131,12 @@ class ColorStopMatrix{
 
                 bool res = false;
 
-                float wh = it.at(1)->getX() - it.at(0)->getX();
+                float w = it.at(1)->getX() - it.at(0)->getX();
+                float h = it.at(2)->getY() - it.at(1)->getY();
                 
-
-                bool t= ( x >= it.at(0)->getX() && y >= it.at(0)->getY() && x <= it.at(0)->getX()+wh && y <= it.at(0)->getY()+wh);
+               // Serial.println("getColor4 ");
+               // Serial.print(x);Serial.print(" ");Serial.println(y);
+                bool t= ( x >= it.at(0)->getX() && y >= it.at(0)->getY() && x <= it.at(0)->getX()+w && y <= it.at(0)->getY()+h);
 
 
                 // Serial.print("pF(");Serial.print(x);Serial.print(",");Serial.print(y);Serial.println(")");
@@ -140,7 +147,12 @@ class ColorStopMatrix{
                 // Serial.print("p3(");Serial.print(it.at(3)->getX());Serial.print(",");Serial.print(it.at(3)->getY());Serial.println(")");
 
                 if(t){
-                    //Serial.println("found");
+                    //TODO: erreur 3 gradient vertical
+                    // Serial.println("in square :");
+                    // Serial.println(it.at(0)->getColor());
+                    // Serial.println(it.at(1)->getColor());
+                    // Serial.println(it.at(2)->getColor());
+                    // Serial.println(it.at(3)->getColor());
                     squareView = it;
                     return true;
                 }
