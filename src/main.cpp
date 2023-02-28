@@ -67,77 +67,16 @@ void setup(){
   FSStream::begin();
 
   configureMQTTClient();
-
   configureWebController();
+
   web.listen(&server);
-
   server.begin();
-
   stairs.loadFromFile();
-
   web.autoConnect();
-
-  // pirDownfunc =  [&pirDownfunc,&stairs](String data){
-  //     bool value = convertToNumeric<String,bool>(data);
-  //     if(value){
-  //       stairs.onDown2Up();
-  //     }
-  // };
-
-  // pirUpfunc =  [&pirUpfunc,&stairs](String data){
-  //     bool value = convertToNumeric<String,bool>(data);
-  //     if(value){
-  //       stairs.onUp2Down();
-  //     }
-  // };
-
-  // LDRFunc =  [&LDRFunc,&stairs](String data){
-  //     bool value = convertToNumeric<String,bool>(data);
-  //     if(value){
-  //       stairs.onDown2Up();
-  //     }
-  // };
-
-
-  // mqttConnected=[&mqttConnected,&mqttClient](){
-  //   mqttClient.on(String("PIRDown"),pirDownfunc);
-  //   mqttClient.on(String("PIRUp"),pirUpfunc);
-  //   mqttClient.on(String("LDR"),LDRFunc);
-  // };
-
-  // mqttClient.onConnected(mqttConnected);
-  // mqttClient.onDisconnected([&](){});
-
-
-  // if(!web.autoConnect()) {
-  //   Serial.println(F("failed to connect and hit timeout"));
-  //   delay(3000);
-  //   //reset and try again, or maybe put it to deep sleep
-  //   ESP.reset();
-  //   delay(5000);
-  // }
-
-  // configureAlexaController();
-  // alexa.listen(&server);
-
-
-  // // DNSServer dns;
-  // // AsyncWiFiManagerCustom wifiManager(&server,&dns);
-  // // wifiManager.resetSettings();
-  
-  // // if (!wifiManager.autoConnect("AP-CONNNECTED-STAIRS")) {
-  // //   Serial.println(F("failed to connect and hit timeout"));
-  // //   delay(3000);
-  // //   //reset and try again, or maybe put it to deep sleep
-  // //   ESP.reset();
-  // //   delay(5000);
-  // // }
-
 }
 
 void loop(){
-  // MDNS.update();
-  //alexa.handle();
+  MDNS.update();
 }
 
 void configureWebController(){
@@ -164,7 +103,7 @@ void configureWebController(){
   });
 
   web.onLightOff([](){
-    stairs.lightOff();
+    stairs.onlightOff();
   });
 
   web.onBrightnessChange([](unsigned char value){
@@ -175,7 +114,7 @@ void configureWebController(){
   web.onColorChange([](String acolor){
     Serial.println("web::onColorChange");
     RGBW color(acolor);
-    stairs.lightOn(color); 
+    stairs.onlightOn(color); 
   });
 
   web.onConnectedStairsConf([&](String json){
@@ -227,7 +166,7 @@ void configureAlexaController(){
   alexa.setColorFor<AlexaController::AlexaColor::LAVENDER>("0xe6e6fa");
 
   alexa.onLightOff([](){
-    stairs.lightOff();
+    stairs.onlightOff();
   });
 
   alexa.onBrightnessChange([](unsigned char value){
@@ -236,9 +175,8 @@ void configureAlexaController(){
   });
 
   alexa.onColorChange([](String acolor){
-    Serial.print("alexa::onColorChange");
     RGBW color(acolor);
-    stairs.lightOn(color); 
+    stairs.onlightOn(color); 
   });
 
   alexa.setServiceStatus("getStairsStatus",[&](){
@@ -251,43 +189,22 @@ void configureMQTTClient(){
 
   mqttClient.onDisconnected([&](){});
 
-// pirDownfunc =  [&pirDownfunc,&stairs](String data){
-  //     bool value = convertToNumeric<String,bool>(data);
-  //     if(value){
-  //       stairs.onDown2Up();
-  //     }
-  // };
+  mqttClient.onConnected([](){
 
-  // pirUpfunc =  [&pirUpfunc,&stairs](String data){
-  //     bool value = convertToNumeric<String,bool>(data);
-  //     if(value){
-  //       stairs.onUp2Down();
-  //     }
-  // };
-
-  // LDRFunc =  [&LDRFunc,&stairs](String data){
-  //     bool value = convertToNumeric<String,bool>(data);
-  //     if(value){
-  //       stairs.onDown2Up();
-  //     }
-  // };
-
-  mqttClient.onConnected([&stairs](){
-
-    mqttClient.on(String("PIRDown"), [&stairs](String data){
+    mqttClient.on(String("PIRDown"), [](String data){
       bool value = convertToNumeric<String,bool>(data);
       if(value){
         stairs.onDown2Up();
       }
     });
 
-    mqttClient.on(String("PIRUp"),[&stairs](String data){
+    mqttClient.on(String("PIRUp"),[](String data){
       bool value = convertToNumeric<String,bool>(data);
       if(value){
         stairs.onUp2Down();
       }
     });
-    mqttClient.on(String("LDR"),[&stairs](String data){
+    mqttClient.on(String("LDR"),[](String data){
       bool value = convertToNumeric<String,bool>(data);
       if(value){
         stairs.onDown2Up();
@@ -296,60 +213,4 @@ void configureMQTTClient(){
 
   });
   
-  
-  
-
 }
-
-// fauxmoESP fauxmo;
-// AsyncWebServer server(80);
-// DNSServer dns;
-// void setup(){
-//   Serial.begin(115200);
-//   delay(50);
-//   Serial.print(F("Welcome to ConnectedStair"));
-// //   Serial.println(ESP.getFreeHeap(),DEC);
-
-// //   const char* json = "{\"pin\":\"D8\",\"lightOffAfter\":5000,\"brightness\":35,\"LDRThreshold\":35,\"enableAlexa\":true,\"animator\":{\"effect\":\"normal\",\"speed\":30,\"transition\":300},\"stairstep\":[{\"pixel\":1,\"color\":[\"0xffffffff\",\"0x000000\"]},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1},{\"pixel\":1,\"color\":[\"0xffffffff\",\"0x000000\"]}]}";
-
-// //   // if(stair.loadFromMemory(json.c_str())){
-// //   // //   //  // stair.saveToFile();
-// //   //  Serial.println("load OK");
-// //   //  }else{
-// //   //    Serial.println("load Error");
-// //   //  }
-// //   //    Serial.println(ESP.getFreeHeap(),DEC);
-
-// // stair.loadFromMemory(json);
-// //    stair.setParams();
-// DNSServer dns;
-//   AsyncWiFiManager  wifiManager(&server,&dns);
-
-
-//   if (!wifiManager.autoConnect("AP-CONNNECTED-STAIRS")) {
-//     Serial.println(F("failed to connect and hit timeout"));
-//     delay(3000);
-//     //reset and try again, or maybe put it to deep sleep
-//     ESP.reset();
-//     delay(5000);
-//   }
-
-
-// fauxmo.addDevice("light one");
-//     fauxmo.addDevice("light two");
-//     fauxmo.addDevice("light three");
-//     fauxmo.addDevice("light four");
-
-//     fauxmo.setPort(80); // required for gen3 devices
-//     fauxmo.enable(true);
-
-//     fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
-//         Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
-//     });
-// }
-
-// void loop(){
-
-//       fauxmo.handle();
-
-// }

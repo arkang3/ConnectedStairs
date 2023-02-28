@@ -7,89 +7,67 @@
 		
 	},
 	"LDRThreshold": 35,
+	"lightOffAfter": 5000,
+	"matrixGradient": [{
+		"at": 0,
+		"lineGradient": [{
+			"at": 0,
+			"color": "0xff0000"
+		}, {
+			"at": 1,
+			"color": "0xff0000"
+		}]
+
+	},{
+		"at": 0.4,
+		"lineGradient": [{
+			"at": 0,
+			"color": "0x00ff00"
+		}, {
+			"at": 1,
+			"color": "0x00ff00"
+		}]
+
+	},{
+		"at": 0.6,
+		"lineGradient": [{
+			"at": 0,
+			"color": "0x00ff00"
+		}, {
+			"at": 1,
+			"color": "0x00ff00"
+		}]
+
+	}, {
+		"at": 1,
+		"lineGradient": [{
+			"at": 0,
+			"color": "0xff0000"
+		}, {
+			"at": 1,
+			"color": "0xff0000"
+		}]
+
+	}],
 	"lightEffect": {
 		"type": 0,
-		"speed": 500,
-		"lightOffAfter": 5000,
-		"matrixGradient": [{
-				"at": 0,
-				"lineGradient": 
-				[
-					{"at":0, "color":"0xff0000"},{"at":1, "color":"0xffff00"}
-				]
-				
-			},
-			{
-				"at": 1,
-				"lineGradient": 
-				[
-					{"at":0, "color":"0xff0000"},{"at":1, "color":"0xff0000"}
-				]
-				
-			}
-		]
+		"speed": 500
 	},
-	"stepxels": [
-		{
+	"stepxels": [{
 			"startAt": 0,
-			"pixels": 1
+			"pixels": 5
 		},
 		{
-			"pixels": 1
+			"pixels": 5
 		},
 		{
-			"pixels": 1
+			"pixels": 5
 		},
 		{
-			"pixels": 1
+			"pixels": 5
 		},
 		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
-		},
-		{
-			"pixels": 1
+			"pixels": 5
 		}
 	]
 }

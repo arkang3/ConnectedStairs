@@ -10,6 +10,7 @@ class Stepxel{
         unsigned int _size;
         bool _isDirty;
         bool _status;
+        unsigned int _startAt;
 
     private:
 
@@ -39,15 +40,15 @@ class Stepxel{
                 _isDirty = true;
             }
 
-            unsigned int startAt=0;
-            error = ArduinoJson::extends::getValueFromJSON<int, unsigned int>(object["startAt"] | 0 , startAt, 0);
+            _startAt=0;
+            error = ArduinoJson::extends::getValueFromJSON<int, unsigned int>(object["startAt"] | 0 , _startAt, 0);
 
             if(_isDirty){
                 defaultConfig();
             }else{
-                _step = std::make_pair(offset+startAt,offset+nPixel+startAt);
+                _step = std::make_pair(offset+_startAt,offset+nPixel+_startAt);
                 _size = nPixel ;
-                offset = offset + nPixel + startAt;
+                offset = offset + nPixel + _startAt;
                 _status = false;
             }
 
@@ -58,6 +59,8 @@ class Stepxel{
 
         void serialize(JsonObject& object){
             object["pixels"] = _size;
+            if(_startAt)
+                object["startAt"] = _startAt;
         }
 
         bool isDirty(){
@@ -68,7 +71,6 @@ class Stepxel{
             _uid = other.uid();
             _step = std::make_pair(other.begin(),other.end());
             _size = other.size();
-
             return *this;
         }
 

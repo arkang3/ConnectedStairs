@@ -1,0 +1,33 @@
+<header class="bgimg-1 w3-display-container w3-padding-top-64 " id="home">
+    <div class="power-switch " >
+        <input type="checkbox" onchange="toggleLight(this,'0xffffff')" id="lightButton" />
+        <div class="button" >
+          <svg class="power-off">
+            <use xlink:href="#line" class="line" />
+            <use xlink:href="#circle" class="circle" />
+          </svg>
+          <svg class="power-on" >
+            <use xlink:href="#line" class="line" />
+            <use xlink:href="#circle" class="circle" />
+          </svg>
+        </div>
+    </div>
+
+    <div>
+        <input class="sliderwrap-gray" onchange="setBrightness(this)" type="range" min="0" max="255" value="75" title="Drag me, baby.">
+        <input class="sliderwrap" onchange="setColor(this)" type="range" min="0" max="1000" value="75" title="Drag me, baby.">
+    </div>
+      <!-- SVG -->
+      <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+        <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" id="line">
+          <line x1="75" y1="34" x2="75" y2="58"/>
+        </symbol>
+        <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" id="circle">
+          <circle cx="75" cy="80" r="35"/>
+        </symbol>
+      </svg>
+</header>
+
+<script type="text/javascript">
+  window.onload = isStairsConfigure();
+</script>

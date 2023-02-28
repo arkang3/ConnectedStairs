@@ -1,6 +1,6 @@
 <header class="bgimg-1 w3-display-container w3-padding-top-64 " id="home">
     <div class="power-switch " >
-        <input type="checkbox" onchange="toggleLight(this,'0xffffff')" />
+        <input type="checkbox" onchange="toggleLight(this,'0xffffff')" id="lightButton" />
         <div class="button" >
           <svg class="power-off">
             <use xlink:href="#line" class="line" />
@@ -15,7 +15,7 @@
 
     <div>
         <input class="sliderwrap-gray" onchange="setBrightness(this)" type="range" min="0" max="255" value="75" title="Drag me, baby.">
-        <input class="sliderwrap" onchange="setColor(this)" type="range" min="0" max="100" value="75" title="Drag me, baby.">
+        <input class="sliderwrap" onchange="setColor(this)" type="range" min="0" max="1000" value="75" title="Drag me, baby.">
     </div>
       <!-- SVG -->
       <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">

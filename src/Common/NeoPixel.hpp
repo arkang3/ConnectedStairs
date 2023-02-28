@@ -20,6 +20,8 @@ class NeoPixel{
         std::map<String,unsigned int> _dataFreq;
         bool _isDirty;
 
+        std::vector<RGBW> _pixels;
+
        
     private:
 
@@ -179,6 +181,8 @@ class NeoPixel{
             Serial.println(_brightness);
             Serial.print("    _maxBrightness: ");
             Serial.println(_maxBrightness);
+
+            _pixels.resize(_size);
     
             if(_brightness>_maxBrightness){
                 _brightness = _maxBrightness;
@@ -188,6 +192,10 @@ class NeoPixel{
             _neopixels->clear();
             _neopixels->setBrightness(_brightness);
             _neopixels->show();
+            
+            _pixels.clear();
+            _pixels.insert(_pixels.end(), _size, RGBW(0,0,0,0));
+
         }
 
         void serialize(JsonObject& object){
@@ -199,6 +207,10 @@ class NeoPixel{
 
         unsigned char getBrighnessMax(){
             return _maxBrightness;
+        }
+
+        unsigned char getBrighness(){
+            return _brightness;
         }
 
         void setBrightness(unsigned int value){
@@ -214,46 +226,99 @@ class NeoPixel{
             _neopixels->show();
         }
 
+        RGBW getPixels(unsigned int position){
+            return _pixels.at(position);
+        }
+
         void display(){
             _neopixels->show();
         }
 
-         void display(const RGBW& color){
+        void display(const RGBW& color){
              _neopixels->fill(color.getColor(),0);
              _neopixels->show();
+             _pixels.clear();
+             _pixels.insert(_pixels.end(), _size, color);
         }
 
         void display(unsigned int begin, unsigned int size, const RGBW& color){
              _neopixels->fill(color.getColor(),begin,size);
              _neopixels->show();
+            unsigned int end = begin+size; 
+            for(auto x=begin;x<end;x++)  _pixels[x] = color;
         }
 
         void display(unsigned int begin, unsigned int size, std::function<RGBW(unsigned int)> func){
             unsigned int end = begin+size; 
             unsigned int xx=0;
             for(auto x=begin;x<end;x++){
-                _neopixels->setPixelColor(x,func(xx).getColor());
+                _pixels[x] = func(xx);
+                _neopixels->setPixelColor(x,_pixels[x].getColor());
                 xx++;
             }
             _neopixels->show();
         }
 
-        void setColorLine(unsigned int begin, unsigned int end, const RGBW& color){
-            for(auto i=begin;i<end;i++){
-                _neopixels->setPixelColor(i,color.getColor());
-            }
-        }
-
-        void setColorLine(unsigned int begin, unsigned int end, const std::vector<RGBW>& color){
-            for(auto i=begin;i<end;i++)
-                _neopixels->setPixelColor(i,color[i].getColor());
-        }
-
-        void setColorLine(unsigned int begin, unsigned int end, std::function<RGBW(unsigned int)> func){
+        void display(unsigned int begin, unsigned int size, std::function<RGBW(unsigned int,unsigned int)> func,unsigned int brightness){
+            unsigned int end = begin+size; 
+            unsigned int xx=0;
             for(auto x=begin;x<end;x++){
-                _neopixels->setPixelColor(x,func(x).getColor());
+                _pixels[x] = func(xx,brightness);
+                _neopixels->setPixelColor(x,_pixels[x].getColor());
+                xx++;
+            }
+            _neopixels->show();
+        }
+
+        void display(unsigned int begin, unsigned int size,  std::function<RGBW(unsigned int,RGBW,float)> func,float brightness){
+            unsigned int end = begin+size; 
+            unsigned int xx=0;
+            for(auto x=begin;x<end;x++){
+                _pixels[x] = func(xx,_pixels[x],brightness);
+                _neopixels->setPixelColor(x,_pixels[x].getColor());
+                xx++;
+            }
+            _neopixels->show();
+        }
+
+        void setColorLine(unsigned int begin, unsigned int size, std::function<RGBW(unsigned int,RGBW,float)> func,float brightness){
+            unsigned int end = begin+size; 
+            unsigned int xx=0;
+            for(auto x=begin;x<end;x++){
+                _pixels[x] = func(xx,_pixels[x],brightness);
+                _neopixels->setPixelColor(x,_pixels[x].getColor());
+                xx++;
             }
         }
+
+        void setColorLine(unsigned int begin, unsigned int size,  std::function<RGBW(RGBW,float)> func, float brightness){
+            unsigned int end = begin+size; 
+            unsigned int xx=0;
+            for(auto x=begin;x<end;x++){
+                _pixels[x] = func(_pixels[x],brightness);
+                _neopixels->setPixelColor(x,_pixels[x].getColor());
+                xx++;
+            }
+        }
+
+        // void setColorLine(unsigned int begin, unsigned int end, const RGBW& color){
+        //     for(auto i=begin;i<end;i++){
+        //         _neopixels->setPixelColor(i,color.getColor());
+        //     }
+        // }
+
+        // void setColorLine(unsigned int begin, unsigned int end, const std::vector<RGBW>& color){
+        //     for(auto i=begin;i<end;i++)
+        //         _neopixels->setPixelColor(i,color[i].getColor());
+        // }
+
+        // void setColorLine(unsigned int begin, unsigned int end, std::function<RGBW(unsigned int)> func){
+        //     for(auto x=begin;x<end;x++){
+        //         _neopixels->setPixelColor(x,func(x).getColor());
+        //     }
+        // }
+
+       
 
 
 

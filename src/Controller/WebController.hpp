@@ -15,8 +15,8 @@ class SSIDWifi{
 
     private:
 
-        unsigned int getRSSIasQuality(int RSSI) const {
-            unsigned int quality = 0;
+        int32_t getRSSIasQuality(int RSSI) const {
+            int32_t quality = 0;
 
             if (RSSI <= -100){
                 quality = 0;
@@ -230,7 +230,6 @@ public:
             WiFi.mode(WIFI_STA);
             WiFi.persistent(true);
 
-            wl_status_t statut;
             if (request->hasParam("ssid") && request->hasParam("password") ){
                 WiFi.begin(request->getParam("ssid")->value(),request->getParam("password")->value());
             }else{
@@ -475,7 +474,7 @@ class WebController : public IController{
 
            
             server->on("/scanNetworks", HTTP_GET, [this](AsyncWebServerRequest * request) {
-                wifi_ssid_count_t n = WiFi.scanNetworks(true);
+                //wifi_ssid_count_t n = WiFi.scanNetworks(true);
                 if(_threadScan.active()){
                     _threadScan.detach();
                 }

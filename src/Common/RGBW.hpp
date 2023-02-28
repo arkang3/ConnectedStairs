@@ -49,23 +49,33 @@ class RGBW{
               return ((uint32_t)_w << 24) | ((uint32_t)_r << 16) | ((uint32_t)_g << 8) | _b;
         }
 
+        void getStrColor(){
+            Serial.print("getStrColor : ");
+            Serial.print(_r);
+            Serial.print(" ");
+            Serial.print(_g);
+            Serial.print(" ");
+            Serial.print(_b);
+            Serial.println(" ");
+        }
+
         template<class T>
-        T getRedColor() {
+        T getRedColor() const{
             return T(_r);
         }
 
         template<class T>
-        T getGreenColor() {
+        T getGreenColor() const{
             return T(_g);
         }
 
         template<class T>
-        T getBlueColor() {
+        T getBlueColor() const{
             return T(_b);
         }
 
         template<class T>
-        T getWhiteColor() {
+        T getWhiteColor() const{
             return T(_w);
         }
 
@@ -76,24 +86,3 @@ class RGBW{
         }
       
 };
-
-namespace color{
-
-    inline int interpolate(int a, int b, int c, int d, double t, double s){
-        return (int)(a*(1-t)*(1-s) + b*t*(1-s) + c*(1-t)*s + d*t*s);
-    }
-
-
-    inline RGBW getInterpolateColor( RGBW& a,  RGBW& b, RGBW& c,  RGBW& d, int w, int h, int x, int y){
-        double t = double(x)/double(w);
-        double s = double(y)/double(h);
-        // int red = interpolate(a.getRedColor(), b.getRedColor(), c.getRedColor(), d.getRedColor(), t, s);
-        // int green = interpolate(a.getGreenColor(), b.getGreenColor(), c.getGreenColor(), d.getGreenColor(), t, s);
-        // int blue = interpolate(a.getBlueColor(), b.getBlueColor(), c.getBlueColor(), d.getBlueColor(), t, s);
-        // int white = interpolate(a.getWhiteColor(), b.getWhiteColor(), c.getWhiteColor(), d.getWhiteColor(), t, s);
-
-        //return RGBW(red,green,blue,white);
-        return RGBW(0,0,0,0);
-
-    }
-}

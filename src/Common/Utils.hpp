@@ -23,6 +23,10 @@ namespace ArduinoJson{
             }
             return true;
         }
+
+        inline double round2(double value) {
+            return (int)(value * 100 + 0.5) / 100.0;
+        }
     }
 }
 
