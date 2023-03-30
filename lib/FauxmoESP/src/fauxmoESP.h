@@ -35,7 +35,7 @@ THE SOFTWARE.
 #define FAUXMO_RX_TIMEOUT           3
 #define FAUXMO_DEVICE_UNIQUE_ID_LENGTH  12
 
-//#define DEBUG_FAUXMO                Serial
+// #define DEBUG_FAUXMO                Serial
 #ifdef DEBUG_FAUXMO
     #if defined(ARDUINO_ARCH_ESP32)
         #define DEBUG_MSG_FAUXMO(fmt, ...) { DEBUG_FAUXMO.printf_P((PGM_P) PSTR(fmt), ## __VA_ARGS__); }
@@ -74,6 +74,7 @@ THE SOFTWARE.
 
 // typedef std::function<void(unsigned char, const char *, bool, unsigned char, unsigned char)> TSetStateCallback;
 typedef std::function<void(unsigned char, const char *, String,String)> TSetStateCallback;
+typedef std::function<void(unsigned char, const char *, bool&, unsigned char&)> TGetStateCallback;
 
 typedef struct {
     char * name;
@@ -98,6 +99,7 @@ class fauxmoESP {
         int getDeviceId(const char * device_name);
         void setDeviceUniqueId(unsigned char id, const char *uniqueid);
         void onSetState(TSetStateCallback fn) { _setCallback = fn; }
+        void onGetState(TGetStateCallback fn) { _getCallback = fn; }
         bool setState(unsigned char id, bool state, unsigned char value);
         bool setState(const char * device_name, bool state, unsigned char value);
         bool process(AsyncClient *client, bool isGet, String url, String body);
@@ -119,6 +121,7 @@ class fauxmoESP {
         WiFiUDP _udp;
         AsyncClient * _tcpClients[FAUXMO_TCP_MAX_CLIENTS];
         TSetStateCallback _setCallback = NULL;
+        TGetStateCallback _getCallback = NULL;
 
         String _deviceJson(unsigned char id, bool all); 	// all = true means we are listing all devices so use full description template
 

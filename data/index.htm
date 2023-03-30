@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Connected.Stairs</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/data2/w3.css">
+    <script src="api.js"></script>
+  </head>
+  <body>
+    <div class="w3-top">
+      <div class="w3-bar w3-white w3-card" id="myNavbar">
+        <a href="/index.html" class="w3-bar-item w3-button w3-wide">CONNECTED STAIRS</a>
+        <div class="w3-right w3-hide-small">
+            <a href="/wifi.html" class="w3-bar-item w3-button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-wifi" viewBox="0 0 16 16"> 
+                    <path d="M15.384 6.115a.485.485 0 0 0-.047-.736A12.444 12.444 0 0 0 8 3C5.259 3 2.723 3.882.663 5.379a.485.485 0 0 0-.048.736.518.518 0 0 0 .668.05A11.448 11.448 0 0 1 8 4c2.507 0 4.827.802 6.716 2.164.205.148.49.13.668-.049z"/> <path d="M13.229 8.271a.482.482 0 0 0-.063-.745A9.455 9.455 0 0 0 8 6c-1.905 0-3.68.56-5.166 1.526a.48.48 0 0 0-.063.745.525.525 0 0 0 .652.065A8.46 8.46 0 0 1 8 7a8.46 8.46 0 0 1 4.576 1.336c.206.132.48.108.653-.065zm-2.183 2.183c.226-.226.185-.605-.1-.75A6.473 6.473 0 0 0 8 9c-1.06 0-2.062.254-2.946.704-.285.145-.326.524-.1.75l.015.015c.16.16.407.19.611.09A5.478 5.478 0 0 1 8 10c.868 0 1.69.201 2.42.56.203.1.45.07.61-.091l.016-.015zM9.06 12.44c.196-.196.198-.52-.04-.66A1.99 1.99 0 0 0 8 11.5a1.99 1.99 0 0 0-1.02.28c-.238.14-.236.464-.04.66l.706.706a.5.5 0 0 0 .707 0l.707-.707z"/> 
+                </svg>
+            WIFI                 
+            </a>
+
+          <a href="/mqtt.html" class="w3-bar-item w3-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-broadcast" viewBox="0 0 16 16"> <path d="M3.05 3.05a7 7 0 0 0 0 9.9.5.5 0 0 1-.707.707 8 8 0 0 1 0-11.314.5.5 0 0 1 .707.707zm2.122 2.122a4 4 0 0 0 0 5.656.5.5 0 1 1-.708.708 5 5 0 0 1 0-7.072.5.5 0 0 1 .708.708zm5.656-.708a.5.5 0 0 1 .708 0 5 5 0 0 1 0 7.072.5.5 0 1 1-.708-.708 4 4 0 0 0 0-5.656.5.5 0 0 1 0-.708zm2.122-2.12a.5.5 0 0 1 .707 0 8 8 0 0 1 0 11.313.5.5 0 0 1-.707-.707 7 7 0 0 0 0-9.9.5.5 0 0 1 0-.707zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/> </svg>
+            MQTT </a>
+          <a href="/stairs.html" class="w3-bar-item w3-button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"> <path d="M3 5H7M21 5H11M3 12H15M21 12H19M3 19H5M21 19H9" stroke="black" stroke-width="2" stroke-linecap="round"/> <circle cx="9" cy="5" r="2" stroke="black" stroke-width="2" stroke-linecap="round"/> <circle cx="17" cy="12" r="2" stroke="black" stroke-width="2" stroke-linecap="round"/> <circle cx="7" cy="19" r="2" stroke="black" stroke-width="2" stroke-linecap="round"/> </svg>
+                        STAIRS 
+        </div>
+        <a href="javascript:void(0)" class="w3-bar-item w3-button w3-right w3-hide-large w3-hide-medium" onclick="w3_open()">
+          <i class="fa fa-bars"></i>
+        </a>
+      </div>
+    </div>
+    <nav class="w3-sidebar w3-bar-block w3-black w3-card w3-animate-left w3-hide-medium w3-hide-large" style="display:none" id="mySidebar">
+      <a href="javascript:void(0)" onclick="w3_close()" class="w3-bar-item w3-button w3-large w3-padding-16">Close &times;</a>
+      <a href="/wifi.html" onclick="w3_close()" class="w3-bar-item w3-button">WIFI</a>
+      <a href="/mqtt.html" onclick="w3_close()" class="w3-bar-item w3-button">MQTT</a>
+      <a href="/stairs.html" onclick="w3_close()" class="w3-bar-item w3-button">STAIRS</a>
+    </nav>
+    
+    <header class="bgimg-1 w3-display-container w3-padding-top-64 " id="home">
+        <div class="power-switch " >
+            <input type="checkbox" onchange="toggleLight(this,'0xffffff')" id="lightButton" />
+            <div class="button" >
+              <svg class="power-off">
+                <use xlink:href="#line" class="line" />
+                <use xlink:href="#circle" class="circle" />
+              </svg>
+              <svg class="power-on" >
+                <use xlink:href="#line" class="line" />
+                <use xlink:href="#circle" class="circle" />
+              </svg>
+            </div>
+        </div>
+    
+        <div>
+            <input class="sliderwrap-gray" onchange="setBrightness(this)" type="range" min="0" max="255" value="75" title="Drag me, baby.">
+            <input class="sliderwrap" onchange="setColor(this)" type="range" min="0" max="1000" value="75" title="Drag me, baby.">
+        </div>
+          <!-- SVG -->
+          <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+            <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" id="line">
+              <line x1="75" y1="34" x2="75" y2="58"/>
+            </symbol>
+            <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" id="circle">
+              <circle cx="75" cy="80" r="35"/>
+            </symbol>
+          </svg>
+    </header>
+    
+    <script type="text/javascript">
+      window.onload = isStairsConfigure();
+    </script>
+    
+    <footer class="w3-center w3-black w3-padding-64">
+      <p>Powered by Arkang3 </a>
+      </p>
+    </footer>
+    <script>
+      // Modal Image Galleryfunction onClick(element){document.getElementById("img01").src=element.src; document.getElementById("modal01").style.display="block"; var captionText=document.getElementById("caption"); captionText.innerHTML=element.alt;}// Toggle between showing and hiding the sidebar when clicking the menu iconvar mySidebar=document.getElementById("mySidebar");function w3_open(){if (mySidebar.style.display==='block'){mySidebar.style.display='none';}else{mySidebar.style.display='block';}}// Close the sidebar with the close buttonfunction w3_close(){mySidebar.style.display="none";}
+    </script>
+  </body>
+</html>

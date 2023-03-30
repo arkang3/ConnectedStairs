@@ -1,6 +1,6 @@
 {
 	"neopixel":{
-		"pin": "D8",
+		"pin": "D9",
 		"brightness": 35,
 		"maxBrightness": 35,
 		"type": "NEO_GRB NEO_KHZ800"
@@ -54,20 +54,14 @@
 		"speed": 500
 	},
 	"stepxels": [{
-			"startAt": 0,
-			"pixels": 5
-		},
-		{
-			"pixels": 5
-		},
-		{
-			"pixels": 5
-		},
-		{
-			"pixels": 5
-		},
-		{
-			"pixels": 5
+			"seek": 0,
+			"pixels": 300
+		},{
+			"pixels": 300
+		},{
+			"pixels": 300
+		},{
+			"pixels": 300
 		}
 	]
 }

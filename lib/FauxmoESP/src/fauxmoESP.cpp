@@ -115,6 +115,10 @@ String fauxmoESP::_deviceJson(unsigned char id, bool all = true) {
 
 	if (id >= _devices.size()) return "{}";
 
+	if (_getCallback) {
+			_getCallback(id, _devices[id].name, _devices[id].state, _devices[id].value);
+	}
+
 	fauxmoesp_device_t device = _devices[id];
 
 	DEBUG_MSG_FAUXMO("[FAUXMO] Sending device info for \"%s\", uniqueID = \"%s\"\n", device.name, device.uniqueid);
@@ -122,6 +126,8 @@ String fauxmoESP::_deviceJson(unsigned char id, bool all = true) {
 
 	if (all)
 	{
+		
+		
 		snprintf_P(
 			buffer, sizeof(buffer),
 			FAUXMO_DEVICE_JSON_TEMPLATE,

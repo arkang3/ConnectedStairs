@@ -1,0 +1,6 @@
+{
+    "pin": 17,
+    "brightness": 35,
+    "maxBrightness": 35,
+    "type": "NEO_GRB NEO_KHZ800"
+}

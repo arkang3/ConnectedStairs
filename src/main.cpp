@@ -1,216 +1,357 @@
 #include <Arduino.h>
 
-#include <ESPAsyncWifiManagerCustom.hpp>
-#include <ESP8266mDNS.h>
+// #include "common/BoardPins.hpp"
+#include <memory>
 
-#include "Common/FSStream.hpp"
-#include "Common/ConnectedStairs.hpp"
+#include "FSStream/FSStreamSD.hpp"
+#include "FSStream/FSStreamInternal.hpp"
 
-#include "MQTT/MQTTClient.hpp"
+#include "common/Screen.hpp"
 
-#include "Controller/AlexaController.hpp"
+#include "driver/Neopixel.hpp"
+#include "connectedStairs/ConnectedStairs.hpp"
+
+#include "wifiConnector/wifiConnector.hpp"
+
 #include "Controller/WebController.hpp"
+#include "controller/AlexaController.hpp"
+#include "controller/MQTTController.hpp"
 
-ConnectedStairs stairs;
+NeoPixel _pixelsDriver;
+std::shared_ptr<IConnectedStairs> stairs;
 
-AsyncWebServer server(80);
-MQTTClient mqttClient;
+AsyncWebServer server(80); 
+WifiConnector wifi("ConnectedStairs");
 
-AlexaController alexa("ConnectedStairs");
 WebController web("ConnectedStairs");
+AlexaController alexa("ConnectedStairs");
+MQTTController mqtt("ConnectedStairs");
 
-std::function<void(String)> pirDownfunc;
-std::function<void(String)> pirUpfunc;
-std::function<void(String)> LDRFunc;
-std::function<void()> mqttConnected;
+bool createStairs();
+bool createStairs(String& json);
+bool createNeoPixels(String& json);
+bool createMQTT(String& json);
 
 void configureAlexaController();
 void configureWebController();
-
-void configureMQTTClient();
-
-
-//30LEDs/m
-// 5  = 150
-// 18 = 540
-
-
-// 130,00
-// 80,00
-// 80,00
-// 82,00
-// 84,00
-// 89,50
-// 97,00
-// 113,00
-// 95,00
-// 85,50
-// 87,50
-// 104,00
-// 108,00
-// 97,00
-// 91,00
-// 85,00
-// 81,50
-// 78,50
-// 78,50
-
-// 1747,00
+void configureMQTTController();
 
 void setup(){
 
   Serial.begin(115200);
-  delay(50);
-  Serial.print(F("Welcome to ConnectedStairs"));
-  Serial.println(ESP.getFreeHeap(),DEC);
+  delay(2000); 
 
-  FSStream::begin();
+  Serial.println(F("Welcome to ConnectedStairs"));
+  Screen::begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS, 41, 40);
+  Screen::display(0,0,String("Boot"));
 
-  configureMQTTClient();
+  FSStreamInternal::begin();
+  FSStreamSD::begin();
+
+  // LittleFS.remove("/stairsConf.json");
+
+  Screen::display(String("."));
+  if(FSStreamInternal::exists(NeoPixel::confPath().c_str())){
+    if(_pixelsDriver.loadFromFile()){
+
+      switch(_pixelsDriver.getColorModel()){
+        case NeoPixel::ColorModel::RGB:
+          stairs = std::make_shared< ConnectedStairs<RGB> >(_pixelsDriver);
+          break;
+        case NeoPixel::ColorModel::RGBW:
+          stairs = std::make_shared< ConnectedStairs<RGBW> >(_pixelsDriver);
+          break;
+        default:
+          stairs = std::make_shared< ConnectedStairs<RGB> >(_pixelsDriver);
+      }
+
+      if(FSStreamInternal::exists(IConnectedStairs::confPath().c_str())){
+        if(stairs->loadFromFile()){
+          Serial.println("stairs loaded");
+        }else{
+          Serial.println("stairsConf error");
+        }
+      }else{
+        Serial.println("stairsConf not found");
+      }
+
+    }else{
+      Serial.println("neoPixelConf error");
+    }
+  }else{
+    Serial.println("neoPixelConf not found");
+  }
+
+  Screen::display(String("."));
   configureWebController();
+  configureAlexaController();
+  configureMQTTController();
+  Screen::display(String(".\n"));
 
-  web.listen(&server);
   server.begin();
-  stairs.loadFromFile();
-  web.autoConnect();
+
+  Screen::display(0,0,String("Connect to wifi"));
+  wifi.autoConnect(server,[](){
+    Screen::display(0,0,String("ESP Online"));
+    Serial.print("connected on wifi");
+    Serial.println("ESP Online");
+
+    web.listen(&server);
+    alexa.listen(&server);
+
+    if(FSStreamInternal::exists(MQTTController::confPath().c_str()))
+      mqtt.loadFromFile();
+
+  });
+
 }
 
 void loop(){
-  MDNS.update();
+
+  std::map< std::pair<uint8_t,uint8_t>, String > multiline;
+
+  String wifiStatus = "Wifi: ";
+
+  if(WiFi.status() == WL_CONNECTED)
+    wifiStatus+= WiFi.localIP().toString();
+  else
+    wifiStatus+="Offline " + WiFi.softAPIP().toString();
+
+  String mqttStatus = "MQTT: ";
+
+  if( mqtt.getStatus())
+    mqttStatus+="Online";
+  else
+    wifiStatus+="Offline";
+  
+  multiline[std::make_pair(0,0)] = wifiStatus;
+  multiline[std::make_pair(0,10)] = mqttStatus;
+  multiline[std::make_pair(0,20)] = mqttStatus;
+
+
+  Screen::display(multiline);
+  
+  // if(mqtt.getStatus())
+  //   Screen::display(String("Online");
+  // else
+  //   Screen::display(String("Offline");
+
+ 
+
 }
 
 void configureWebController(){
 
-  web.onConnected([&](){
-    Serial.println("ESP Online");
-    if(MDNS.begin("connectedstairs")) {
-      MDNS.addService("http", "tcp", 80);
-      Serial.println(F("MDNS responder started"));
-    }
-
-    configureAlexaController();
-    alexa.listen(&server);
-
-    mqttClient.loadFromFile();
+  web.setStatus([&](){
+    return stairs->getStatus();
   });
 
-  web.setServiceStatus("getStairsStatus",[&](){
-    return stairs.getStatus();
-  });
-
-  web.setServiceStatus("getMQTTStatus",[&](){
-    return mqttClient.getStatus();
+  web.setBrightness([&](){
+    return _pixelsDriver.getBrightness();
   });
 
   web.onLightOff([](){
-    stairs.onlightOff();
+    if(stairs)
+      stairs->onLightOff();
   });
 
   web.onBrightnessChange([](unsigned char value){
-    Serial.println(value);
-    stairs.setBrightness(value);
+      _pixelsDriver.setBrightness(value);
   });
 
-  web.onColorChange([](String acolor){
-    Serial.println("web::onColorChange");
-    RGBW color(acolor);
-    stairs.onlightOn(color); 
+  web.onColorChange([](String color){
+    if(stairs)
+      stairs->onLightOn(color); 
   });
 
-  web.onConnectedStairsConf([&](String json){
-    if(stairs.loadFromMemory(json.c_str())){
-      stairs.saveToFile();
-      return true;
-    }else{
-      Serial.println(F("Can't deserialize StairsConf"));
-      return false;
-    }    
+  web.onGetConnectedStairsConf([&](String& json){
+    if(FSStreamInternal::exists(IConnectedStairs::confPath().c_str()))
+      if(FSStreamInternal::read(IConnectedStairs::confPath().c_str(),json))
+        return true;
+    return false;
+  }); 
+
+  web.onGetMQTTConf([&](String& json){
+    if(FSStreamInternal::exists(MQTTController::confPath().c_str()))
+      if(FSStreamInternal::read(MQTTController::confPath().c_str(),json))
+        return true;
+    return false;
+  }); 
+
+  web.onGetNeoPixelConf([&](String& json){
+    if(FSStreamInternal::exists(NeoPixel::confPath().c_str()))
+      if(FSStreamInternal::read(NeoPixel::confPath().c_str(),json))
+        return true;
+    return false;
+  }); 
+
+  web.onSetConnectedStairsConf([&](String json){
+    return createStairs(json);
+  }); 
+
+  web.onSetNeoPixelConf([&](String json){
+    return createNeoPixels(json);
   });
 
-  web.onMQTTConf([&](String json){
-    if(mqttClient.loadFromMemory(json.c_str())){
-      mqttClient.connect();
-      mqttClient.saveToFile();
-    }else{
-      Serial.println(F("Can't deserialize mqttConf"));
-      return false;
-    }
-    return true;
+  web.onSetMQTTConf([&](String json){
+   return createMQTT(json);
   });
 
 }
 
 void configureAlexaController(){
-  alexa.setColorFor<AlexaController::AlexaColor::NONE>("0x000000");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_NONE>("0x000000");
 
-  alexa.setColorFor<AlexaController::AlexaColor::WARM_WHITE>("0xff6200");
-  alexa.setColorFor<AlexaController::AlexaColor::SOFT_WHITE>("0xe9e0c9");
-  alexa.setColorFor<AlexaController::AlexaColor::WHITE>("0xffffff");
-  alexa.setColorFor<AlexaController::AlexaColor::SUN_WHITE>("0xff7300");
-  alexa.setColorFor<AlexaController::AlexaColor::COOL_WHITE>("0xffffff");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_WARM_WHITE>("0xff6200");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_SOFT_WHITE>("0xe9e0c9");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_WHITE>("0xffffff");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_SUN_WHITE>("0xff7300");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_COOL_WHITE>("0xffffff");
 
-  alexa.setColorFor<AlexaController::AlexaColor::RED>("0xff0000");
-  alexa.setColorFor<AlexaController::AlexaColor::CRIMSON>("0xad1c42");
-  alexa.setColorFor<AlexaController::AlexaColor::SALMON>("0xfa8072");
-  alexa.setColorFor<AlexaController::AlexaColor::ORANGE>("0xffa500");
-  alexa.setColorFor<AlexaController::AlexaColor::GOLD>("0xffd700");
-  alexa.setColorFor<AlexaController::AlexaColor::YELLOW>("0xffff00");
-  alexa.setColorFor<AlexaController::AlexaColor::GREEN>("0x00ff00");
-  alexa.setColorFor<AlexaController::AlexaColor::TURQUOISE>("0x40e0d0");
-  alexa.setColorFor<AlexaController::AlexaColor::CYAN>("0x00ffff");
-  alexa.setColorFor<AlexaController::AlexaColor::SKY_BLUE>("0x8abad3");
-  alexa.setColorFor<AlexaController::AlexaColor::BLUE>("0x0000ff");
-  alexa.setColorFor<AlexaController::AlexaColor::PURPLE>("0x800080");
-  alexa.setColorFor<AlexaController::AlexaColor::MAGENTA>("0xff00ff");
-  alexa.setColorFor<AlexaController::AlexaColor::ROSE>("0xff007f");
-  alexa.setColorFor<AlexaController::AlexaColor::LAVENDER>("0xe6e6fa");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_RED>("0xff0000");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_CRIMSON>("0xad1c42");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_SALMON>("0xfa8072");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_ORANGE>("0xffa500");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_GOLD>("0xffd700");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_YELLOW>("0xffff00");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_GREEN>("0x00ff00");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_TURQUOISE>("0x40e0d0");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_CYAN>("0x00ffff");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_SKY_BLUE>("0x8abad3");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_BLUE>("0x0000ff");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_PURPLE>("0x800080");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_MAGENTA>("0xff00ff");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_ROSE>("0xff007f");
+  alexa.setColorFor<AlexaController::AlexaColor::ALEXA_LAVENDER>("0xe6e6fa");
 
   alexa.onLightOff([](){
-    stairs.onlightOff();
+    if(stairs)
+      stairs->onLightOff();
   });
 
   alexa.onBrightnessChange([](unsigned char value){
-    Serial.println(value);
-    stairs.setBrightness(value);
+    _pixelsDriver.setBrightness(value);
   });
 
-  alexa.onColorChange([](String acolor){
-    RGBW color(acolor);
-    stairs.onlightOn(color); 
+  alexa.onColorChange([](String color){
+    if(stairs)
+      stairs->onLightOn(color); 
   });
 
-  alexa.setServiceStatus("getStairsStatus",[&](){
-    return stairs.getStatus();
+  alexa.setStatus([&](){
+    if(stairs)
+      return stairs->getStatus();
+    return false;
   });
+
+  alexa.setBrightness([&](){
+    return _pixelsDriver.getBrightness();
+  });
+
 }
 
+void configureMQTTController(){
 
-void configureMQTTClient(){
+  mqtt.onDisconnected([&](){});
 
-  mqttClient.onDisconnected([&](){});
+  mqtt.onConnected([](){
 
-  mqttClient.onConnected([](){
-
-    mqttClient.on(String("PIRDown"), [](String data){
+    mqtt.on(String("PIRDown"), [](String data){
       bool value = convertToNumeric<String,bool>(data);
-      if(value){
-        stairs.onDown2Up();
+      if(value && stairs){
+        stairs->onDown2Up();
       }
     });
 
-    mqttClient.on(String("PIRUp"),[](String data){
+    mqtt.on(String("PIRUp"),[](String data){
       bool value = convertToNumeric<String,bool>(data);
-      if(value){
-        stairs.onUp2Down();
+      if(value && stairs){
+        stairs->onUp2Down();
       }
     });
-    mqttClient.on(String("LDR"),[](String data){
+
+    mqtt.on(String("LDR"),[](String data){
       bool value = convertToNumeric<String,bool>(data);
-      if(value){
-        stairs.onDown2Up();
+      if(value && stairs){
+        stairs->onDown2Up();
       }
     });
 
   });
   
+}
+
+bool createNeoPixels(String& json){
+  if(_pixelsDriver.loadFromMemory(json.c_str())){
+      _pixelsDriver.saveToFile();
+      createStairs();
+      return true;
+  }
+  Serial.println(F("Can't deserialize mqttConf"));
+  return false;
+}
+
+bool createStairs(String& json){
+
+  if(stairs)stairs.reset();
+
+  switch(_pixelsDriver.getColorModel()){
+    case NeoPixel::ColorModel::RGB:
+      stairs = std::make_shared< ConnectedStairs<RGB> >(_pixelsDriver);
+      break;
+    case NeoPixel::ColorModel::RGBW:
+      stairs = std::make_shared< ConnectedStairs<RGBW> >(_pixelsDriver);
+      break;
+    default:
+      stairs = std::make_shared< ConnectedStairs<RGB> >(_pixelsDriver);
+  }
+
+  if(FSStreamInternal::exists(IConnectedStairs::confPath().c_str())){
+    if(stairs->loadFromMemory(json.c_str())){
+      Serial.println("stairs loaded");
+      return true;
+    }else{
+      Serial.println("stairsConf error");
+    }
+  }else{
+    Serial.println("stairsConf not found");
+  }
+  return false;
+}
+
+bool createStairs(){
+
+  if(stairs)stairs.reset();
+
+  switch(_pixelsDriver.getColorModel()){
+    case NeoPixel::ColorModel::RGB:
+      stairs = std::make_shared< ConnectedStairs<RGB> >(_pixelsDriver);
+      break;
+    case NeoPixel::ColorModel::RGBW:
+      stairs = std::make_shared< ConnectedStairs<RGBW> >(_pixelsDriver);
+      break;
+    default:
+      stairs = std::make_shared< ConnectedStairs<RGB> >(_pixelsDriver);
+  }
+
+  if(FSStreamInternal::exists(IConnectedStairs::confPath().c_str())){
+    if(stairs->loadFromFile()){
+      Serial.println("stairs loaded");
+      return true;
+    }else{
+      Serial.println("stairsConf error");
+    }
+  }else{
+    Serial.println("stairsConf not found");
+  }
+  return false;
+}
+
+bool createMQTT(String& json){
+  if(mqtt.loadFromMemory(json.c_str())){
+      mqtt.saveToFile();
+      return true;
+  }
+  Serial.println(F("Can't deserialize mqttConf"));
+  return false;
 }

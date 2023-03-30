@@ -1,0 +1,57 @@
+{
+	"LDRThreshold": 35,
+	"lightOffAfter": 5000,
+	"lightStepSpeed" : 500,
+	"matrixGradient": [{
+		"at": 0,
+		"lineGradient": [{
+			"at": 0,
+			"color": "0xff0000"
+		}, {
+			"at": 1,
+			"color": "0xff00ff"
+		}]
+
+	},{
+		"at": 0.4,
+		"lineGradient": [{
+			"at": 0,
+			"color": "0x00ff00"
+		}, {
+			"at": 1,
+			"color": "0x00ff00"
+		}]
+
+	},{
+		"at": 0.6,
+		"lineGradient": [{
+			"at": 0,
+			"color": "0x00ff00"
+		}, {
+			"at": 1,
+			"color": "0x00ff00"
+		}]
+
+	}, {
+		"at": 1,
+		"lineGradient": [{
+			"at": 0,
+			"color": "0xff0000"
+		}, {
+			"at": 1,
+			"color": "0xff0000"
+		}]
+
+	}],
+	"stepxels": [{
+			"seek": 0,
+			"pixels": 10
+		},{
+			"pixels": 10
+		},{
+			"pixels": 10
+		},{
+			"pixels": 10
+		}
+	]
+}
